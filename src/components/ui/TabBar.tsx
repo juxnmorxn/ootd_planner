@@ -1,0 +1,34 @@
+import { cn } from '../../lib/utils';
+
+interface TabBarProps {
+    tabs: Array<{
+        key: string;
+        label: string;
+        icon?: string;
+    }>;
+    activeTab: string;
+    onTabChange: (key: string) => void;
+    className?: string;
+}
+
+export function TabBar({ tabs, activeTab, onTabChange, className }: TabBarProps) {
+    return (
+        <div className={cn('flex gap-2 overflow-x-auto pb-2 scrollbar-hide', className)}>
+            {tabs.map((tab) => (
+                <button
+                    key={tab.key}
+                    onClick={() => onTabChange(tab.key)}
+                    className={cn(
+                        'flex items-center gap-2 px-4 py-1.5 rounded-full whitespace-nowrap transition-all text-sm font-medium touch-manipulation',
+                        activeTab === tab.key
+                            ? 'bg-black text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    )}
+                >
+                    {tab.icon && <span className="text-base">{tab.icon}</span>}
+                    <span>{tab.label}</span>
+                </button>
+            ))}
+        </div>
+    );
+}

@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
+dist/
+build/
+
+# IDEs and Tools
+.vscode/
+.idea/
+.DS_Store
+*.log
+vdoc.py
+
+# Environment and Secrets (CRITICAL: Never upload these)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+outfit-planner.db
+outfit-planner.db-journal
+outfit-planner.db-wal
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini

@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "target": "ES2020",
+        "lib": [
+            "ES2020"
+        ],
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "resolveJsonModule": true,
+        "outDir": "./dist-server"
+    },
+    "include": [
+        "server.ts",
+        "src/lib/sqlite-db.ts",
+        "src/lib/cloudinary.ts",
+        "src/types.ts"
+    ]
+}
