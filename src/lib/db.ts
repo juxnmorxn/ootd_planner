@@ -63,7 +63,9 @@ class DatabaseService {
     }
 
     async updateProfilePicture(id: string, imageData: string): Promise<User> {
-        return apiDb.updateProfilePicture(id, imageData);
+        const user = await apiDb.updateProfilePicture(id, imageData);
+        this.emitChange({ type: 'user', action: 'update', user });
+        return user;
     }
 
     // ============ GARMENTS ============
@@ -74,7 +76,9 @@ class DatabaseService {
             ...garment,
             id: uuidv4(),
         };
-        return apiDb.createGarment(payload);
+        const created = await apiDb.createGarment(payload);
+        this.emitChange({ type: 'garment', action: 'create', garment: created });
+        return created;
     }
 
     async getGarmentsByUser(userId: string): Promise<Garment[]> {
@@ -86,7 +90,8 @@ class DatabaseService {
     }
 
     async deleteGarment(id: string, userId: string): Promise<void> {
-        return apiDb.deleteGarment(id, userId);
+        await apiDb.deleteGarment(id, userId);
+        this.emitChange({ type: 'garment', action: 'delete', id, userId });
     }
 
     // ============ OUTFITS ============
@@ -96,7 +101,9 @@ class DatabaseService {
             ...outfit,
             id: uuidv4(),
         };
-        return apiDb.createOutfit(payload);
+        const created = await apiDb.createOutfit(payload);
+        this.emitChange({ type: 'outfit', action: 'upsert', outfit: created });
+        return created;
     }
 
     async getOutfitByDate(userId: string, date: string): Promise<Outfit | null> {
@@ -108,21 +115,32 @@ class DatabaseService {
     }
 
     async updateOutfit(id: string, layersJson: string): Promise<void> {
-        return apiDb.updateOutfit(id, layersJson);
+        await apiDb.updateOutfit(id, layersJson);
+        this.emitChange({ type: 'outfit', action: 'update', id, layersJson });
     }
 
     async deleteOutfit(id: string): Promise<void> {
-        return apiDb.deleteOutfit(id);
+        await apiDb.deleteOutfit(id);
+        this.emitChange({ type: 'outfit', action: 'delete', id });
     }
 
     async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<void> {
-        return apiDb.changePassword(userId, oldPassword, newPassword);
+        await apiDb.changePassword(userId, oldPassword, newPassword);
     }
 
     // ============ STATS ============
 
     async getStats(userId: string): Promise<{ garments: number; outfits: number }> {
         return apiDb.getStats(userId);
+    }
+
+    /**
+     * Emite un evento global para que los hooks (useGarments/useOutfits) sepan que
+     * hubo un cambio y recarguen datos sin necesidad de refrescar la página.
+     */
+    private emitChange(detail: any) {
+        if (typeof window === 'undefined') return;
+        window.dispatchEvent(new CustomEvent('db-change', { detail }));
     }
 }
 

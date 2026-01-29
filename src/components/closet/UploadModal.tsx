@@ -41,8 +41,13 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
             });
 
             if (useAI) {
+                // 1) Comprimir/redimensionar para que el modelo procese menos píxeles
+                setLoadingText('Optimizando imagen...');
+                const smaller = await compressImage(dataUrl, 0.8);
+
+                // 2) Ejecutar IA de eliminación de fondo sobre la versión reducida
                 setLoadingText('Eliminando fondo con IA...');
-                const processed = await removeBackgroundFromImage(dataUrl);
+                const processed = await removeBackgroundFromImage(smaller);
                 setImageData(processed);
             } else {
                 const compressed = await compressImage(dataUrl);
