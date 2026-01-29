@@ -694,10 +694,10 @@ app.get('/api/stats/:userId', (req, res) => {
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // Catch-all route to serve the SPA (for React Router/Navigation)
-app.get('/*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-        res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-    }
+// Using a RegExp here avoids the path-to-regexp "Missing parameter name" error
+// that happens with wildcard strings like '*' or '/*' in Express 5.
+app.get(/^(?!\/api).*/, (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // Start server
