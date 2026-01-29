@@ -5,6 +5,7 @@ import { useStore } from '../lib/store';
 import { db } from '../lib/db';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { useToast } from '../components/ui/Toast';
 
 interface ProfileProps {
     onBack: () => void;
@@ -16,6 +17,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
     const setCurrentUser = useStore((state) => state.setCurrentUser);
     const logout = useStore((state) => state.logout);
     const setView = useStore((state) => state.setCurrentView);
+    const { showToast } = useToast();
 
     const [editing, setEditing] = useState(false);
     const [username, setUsername] = useState(currentUser?.username || '');
@@ -120,7 +122,10 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
     };
 
     const handleDeleteAccount = () => {
-        alert('La opción de eliminar cuenta estará disponible próximamente.');
+        showToast({
+            type: 'info',
+            message: 'La opción de eliminar cuenta estará disponible próximamente.',
+        });
     };
 
     const handleLogout = () => {

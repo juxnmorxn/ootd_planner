@@ -4,7 +4,7 @@ import { DailyOutfitStage } from '../components/ui/DailyOutfitStage';
 import { formatDateISO } from '../lib/utils';
 
 interface CalendarHomeProps {
-    onEditOutfit: (date: string) => void;
+    onEditOutfit: (date: string, outfitId?: string) => void;
     onOpenMenu: () => void;
 }
 
@@ -24,8 +24,8 @@ export function CalendarHome({ onEditOutfit }: CalendarHomeProps) {
         setSelectedDate(dateString);
     };
 
-    const handleEditOutfit = () => {
-        onEditOutfit(selectedDate);
+    const handleEditOutfit = (outfitId?: string) => {
+        onEditOutfit(selectedDate, outfitId);
     };
 
     return (

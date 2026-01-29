@@ -110,8 +110,16 @@ class DatabaseService {
         return apiDb.getOutfitByDate(userId, date);
     }
 
+    async getOutfitById(id: string): Promise<Outfit | null> {
+        return apiDb.getOutfitById(id);
+    }
+
     async getOutfitsByUser(userId: string): Promise<Outfit[]> {
         return apiDb.getOutfitsByUser(userId);
+    }
+
+    async getOutfitOptionsByDate(userId: string, date: string): Promise<Outfit[]> {
+        return apiDb.getOutfitOptionsByDate(userId, date);
     }
 
     async updateOutfit(id: string, layersJson: string): Promise<void> {

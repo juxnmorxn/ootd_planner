@@ -210,6 +210,34 @@ class APIDatabase {
         return response.json();
     }
 
+    async getOutfitById(id: string): Promise<Outfit | null> {
+        const response = await fetch(`${API_URL}/outfits/${id}`);
+
+        if (response.status === 404) {
+            return null;
+        }
+
+        if (!response.ok) {
+            throw new Error('Failed to get outfit');
+        }
+
+        return response.json();
+    }
+
+    async getOutfitOptionsByDate(userId: string, date: string): Promise<Outfit[]> {
+        const response = await fetch(`${API_URL}/outfits/user/${userId}/date/${date}/options`);
+
+        if (response.status === 404) {
+            return [];
+        }
+
+        if (!response.ok) {
+            throw new Error('Failed to get outfit options');
+        }
+
+        return response.json();
+    }
+
     async getOutfitsByUser(userId: string): Promise<Outfit[]> {
         const response = await fetch(`${API_URL}/outfits/user/${userId}`);
 

@@ -104,7 +104,7 @@ function migrateUsersTable() {
     }
 }
 
-// Migración defensiva para la tabla outfits, por si el esquema es antiguo
+// Migración defensiva para la tabla outfits, para soportar múltiples opciones por día
 function migrateOutfitsTable() {
     try {
         const columns = db.prepare("PRAGMA table_info('outfits')").all();
@@ -115,21 +115,42 @@ function migrateOutfitsTable() {
 
         const names = new Set(columns.map((c) => c.name));
 
-        if (!names.has('date_scheduled')) {
-            db.exec("ALTER TABLE outfits ADD COLUMN date_scheduled TEXT");
+        // Si falta option_index, migramos a una nueva tabla con el nuevo esquema
+        if (!names.has('option_index')) {
+            db.exec('BEGIN TRANSACTION');
+
+            db.exec(`
+              CREATE TABLE IF NOT EXISTS outfits_new (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                date_scheduled TEXT NOT NULL,
+                option_index INTEGER NOT NULL DEFAULT 1,
+                layers_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+              )
+            `);
+
+            // Copiar datos existentes, asignando option_index = 1 por defecto
+            db.exec(`
+              INSERT INTO outfits_new (id, user_id, date_scheduled, option_index, layers_json, created_at, updated_at)
+              SELECT id, user_id, date_scheduled, 1 as option_index, layers_json,
+                     COALESCE(created_at, datetime('now')), COALESCE(updated_at, datetime('now'))
+              FROM outfits
+            `);
+
+            db.exec('DROP TABLE outfits');
+            db.exec("ALTER TABLE outfits_new RENAME TO outfits");
+
+            db.exec('COMMIT');
         }
 
-        if (!names.has('layers_json')) {
-            db.exec("ALTER TABLE outfits ADD COLUMN layers_json TEXT");
-        }
-
-        if (!names.has('created_at')) {
-            db.exec("ALTER TABLE outfits ADD COLUMN created_at TEXT");
-        }
-
-        if (!names.has('updated_at')) {
-            db.exec("ALTER TABLE outfits ADD COLUMN updated_at TEXT");
-        }
+        // Asegurar índice único por usuario/fecha/opción
+        db.exec(`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_outfits_user_date_option
+          ON outfits(user_id, date_scheduled, option_index)
+        `);
     } catch (err) {
         console.error('[DB] Outfits table migration error:', err);
     }
@@ -171,19 +192,19 @@ db.exec(`
 `);
 
 db.exec(`
-  CREATE TABLE IF NOT EXISTS outfits (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    date_scheduled TEXT NOT NULL,
-    layers_json TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE(user_id, date_scheduled)
-  )
+    CREATE TABLE IF NOT EXISTS outfits (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        date_scheduled TEXT NOT NULL,
+        option_index INTEGER NOT NULL DEFAULT 1,
+        layers_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
 `);
 
-// Ejecutar migración de outfits por si el esquema era antiguo
+// Ejecutar migración de outfits por si el esquema era antiguo (y asegurar índice)
 migrateOutfitsTable();
 
 // ============ AUTH & USERS ============
@@ -565,11 +586,10 @@ app.delete('/api/garments/:id', async (req, res) => {
 
 // ============ OUTFITS ============
 
-// Crear o actualizar outfit para una fecha. No dependemos de UNIQUE(user_id, date_scheduled)
-// para soportar bases de datos antiguas sin esa restricción.
+// Crear una nueva opción de outfit para una fecha.
 app.post('/api/outfits', (req, res) => {
     try {
-        let { id, user_id, date_scheduled, layers_json } = req.body;
+        let { id, user_id, date_scheduled, layers_json, option_index } = req.body;
 
         if (!user_id || !date_scheduled || !layers_json) {
             return res.status(400).json({ error: 'Datos incompletos para crear outfit' });
@@ -582,44 +602,34 @@ app.post('/api/outfits', (req, res) => {
             layers_json = JSON.stringify(layers_json);
         }
 
-        // ¿Ya existe un outfit para ese usuario y fecha?
-        const existing = db
-            .prepare('SELECT id FROM outfits WHERE user_id = ? AND date_scheduled = ?')
-            .get(user_id, date_scheduled);
-
-        if (existing) {
-            // Actualizar outfit existente
-            db.prepare('UPDATE outfits SET layers_json = ?, updated_at = ? WHERE id = ?').run(
-                layers_json,
-                now,
-                existing.id
-            );
-
-            return res.json({
-                id: existing.id,
-                user_id,
-                date_scheduled,
-                layers_json,
-            });
+        // Calcular option_index si no viene
+        if (option_index == null) {
+            const row = db
+                .prepare('SELECT MAX(option_index) as maxOpt FROM outfits WHERE user_id = ? AND date_scheduled = ?')
+                .get(user_id, date_scheduled) as any;
+            const maxOpt = row && row.maxOpt != null ? Number(row.maxOpt) : 0;
+            option_index = maxOpt + 1;
         }
 
-        // Crear nuevo outfit (usar id del cliente si viene, si no generar uno)
         const outfitId = id || randomUUID();
 
         db.prepare(
-            'INSERT INTO outfits (id, user_id, date_scheduled, layers_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-        ).run(outfitId, user_id, date_scheduled, layers_json, now, now);
+            'INSERT INTO outfits (id, user_id, date_scheduled, option_index, layers_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).run(outfitId, user_id, date_scheduled, option_index, layers_json, now, now);
 
-        res.json({ id: outfitId, user_id, date_scheduled, layers_json });
+        res.json({ id: outfitId, user_id, date_scheduled, option_index, layers_json });
     } catch (error) {
         console.error('[API] Create outfit error:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
+// Obtener la primera opción de outfit para una fecha (por compatibilidad)
 app.get('/api/outfits/user/:userId/date/:date', (req, res) => {
     try {
-        const stmt = db.prepare('SELECT * FROM outfits WHERE user_id = ? AND date_scheduled = ?');
+        const stmt = db.prepare(
+            'SELECT * FROM outfits WHERE user_id = ? AND date_scheduled = ? ORDER BY option_index ASC LIMIT 1'
+        );
         const outfit = stmt.get(req.params.userId, req.params.date);
 
         if (!outfit) {
@@ -630,6 +640,7 @@ app.get('/api/outfits/user/:userId/date/:date', (req, res) => {
             id: outfit.id,
             user_id: outfit.user_id,
             date_scheduled: outfit.date_scheduled,
+            option_index: outfit.option_index,
             layers_json: outfit.layers_json,
         });
     } catch (error) {
@@ -637,17 +648,66 @@ app.get('/api/outfits/user/:userId/date/:date', (req, res) => {
     }
 });
 
+// Obtener todas las opciones de outfit para una fecha
+app.get('/api/outfits/user/:userId/date/:date/options', (req, res) => {
+    try {
+        const stmt = db.prepare(
+            'SELECT * FROM outfits WHERE user_id = ? AND date_scheduled = ? ORDER BY option_index ASC'
+        );
+        const outfits = stmt.all(req.params.userId, req.params.date);
+
+        res.json(
+            outfits.map((o) => ({
+                id: o.id,
+                user_id: o.user_id,
+                date_scheduled: o.date_scheduled,
+                option_index: o.option_index,
+                layers_json: o.layers_json,
+            }))
+        );
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/api/outfits/user/:userId', (req, res) => {
     try {
-        const stmt = db.prepare('SELECT * FROM outfits WHERE user_id = ? ORDER BY date_scheduled DESC');
+        const stmt = db.prepare(
+            'SELECT * FROM outfits WHERE user_id = ? ORDER BY date_scheduled DESC, option_index ASC'
+        );
         const outfits = stmt.all(req.params.userId);
 
-        res.json(outfits.map(o => ({
-            id: o.id,
-            user_id: o.user_id,
-            date_scheduled: o.date_scheduled,
-            layers_json: o.layers_json,
-        })));
+        res.json(
+            outfits.map((o) => ({
+                id: o.id,
+                user_id: o.user_id,
+                date_scheduled: o.date_scheduled,
+                option_index: o.option_index,
+                layers_json: o.layers_json,
+            }))
+        );
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener un outfit por ID
+app.get('/api/outfits/:id', (req, res) => {
+    try {
+        const stmt = db.prepare('SELECT * FROM outfits WHERE id = ?');
+        const outfit = stmt.get(req.params.id);
+
+        if (!outfit) {
+            return res.status(404).json({ error: 'Outfit not found' });
+        }
+
+        res.json({
+            id: outfit.id,
+            user_id: outfit.user_id,
+            date_scheduled: outfit.date_scheduled,
+            option_index: outfit.option_index,
+            layers_json: outfit.layers_json,
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

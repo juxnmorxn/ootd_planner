@@ -6,10 +6,12 @@ import { useGarments } from '../hooks/useGarments';
 import { CategorySelector } from '../components/ui/CategorySelector';
 import { GarmentCard } from '../components/closet/GarmentCard';
 import { getCategoryInfo, getAllCategories, cn } from '../lib/utils';
+import { useToast } from '../components/ui/Toast';
 import type { OutfitLayer, GarmentCategory, Garment } from '../types';
 
 interface OutfitEditorProps {
     date: string;
+    outfitId?: string;
     onBack: () => void;
 }
 
@@ -62,7 +64,7 @@ const CATEGORY_GUIDES: Record<
         width: 62,
         height: 40,
         color: 'rgba(191, 219, 254, 0.35)',
-        label: 'TOP / ABRIGO',
+        label: 'TOP / PLAYERA',
     },
     bottom: {
         left: 4,
@@ -94,7 +96,7 @@ const CATEGORY_GUIDES: Record<
         width: 28,
         height: 36,
         color: 'rgba(252, 231, 243, 0.35)',
-        label: 'ACC',
+        label: 'ACC / ACCESORIOS',
     },
     bag: {
         left: 68,
@@ -102,72 +104,63 @@ const CATEGORY_GUIDES: Record<
         width: 28,
         height: 28,
         color: 'rgba(221, 214, 254, 0.35)',
-        label: 'BAG',
+        label: 'BAG / MOCHILA',
     },
 };
 
-// Escalas más grandes para aprovechar mejor el espacio
+// Escalas base por categoría (1.0 para compatibilidad con outfits existentes)
 const BASE_SCALE: Record<GarmentCategory, number> = {
-    head: 1.0,      // Los límites ahora los definen los cuadros guía
-    top: 1.0,
-    bottom: 1.0,
-    feet: 1.0,
-    acc: 1.0,
-    bag: 1.0,
+    head: 1,
+    top: 1,
+    bottom: 1,
+    feet: 1,
+    acc: 1,
+    bag: 1,
 };
 
-export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
+export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: OutfitEditorProps) {
     const currentUser = useStore((state) => state.currentUser);
     const { activeOutfit, setActiveOutfitLayers, addLayer, removeLayer, clearActiveOutfit } = useStore();
-    const { createOutfit, updateOutfit, getOutfitByDate, deleteOutfit } = useOutfits();
-    const [outfitId, setOutfitId] = useState<string | null>(null);
+    const { createOutfit, updateOutfit, getOutfitByDate, getOutfitById, deleteOutfit } = useOutfits();
+    const [outfitId, setOutfitId] = useState<string | null>(initialOutfitId || null);
     const [selectedCategory, setSelectedCategory] = useState<GarmentCategory | null>(null);
     const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
     const [swipeStart, setSwipeStart] = useState<{ x: number; y: number; garmentId: string } | null>(null);
+    const [smallMessage, setSmallMessage] = useState<string | null>(null);
     const [showCategoryMenu, setShowCategoryMenu] = useState(false);
     const [showSubcategoryMenu, setShowSubcategoryMenu] = useState(false);
     const canvasRef = useRef<HTMLDivElement>(null);
     const { garments: allGarments } = useGarments();
-    const [gridColumns, setGridColumns] = useState(2); // Default to 2 columns
-    const [pinchDistance, setPinchDistance] = useState<number | null>(null);
-
-    const handlePinchStart = (e: React.TouchEvent) => {
-        if (e.touches.length === 2) {
-            const dist = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
-            setPinchDistance(dist);
-        }
-    };
-
-    const handlePinchMove = (e: React.TouchEvent) => {
-        if (pinchDistance && e.touches.length === 2) {
-            const dist = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY
-            );
-            const ratio = dist / pinchDistance;
-            if (ratio > 1.25) setGridColumns(2);
-            else if (ratio < 0.75) setGridColumns(3);
-        }
-    };
+    const { showToast } = useToast();
 
     useEffect(() => {
+        const loadOutfit = async () => {
+            // Si viene un outfitId específico desde el calendario, cargar ese
+            if (initialOutfitId) {
+                const byId = await getOutfitById(initialOutfitId);
+                if (byId) {
+                    setOutfitId(byId.id);
+                    const layers: OutfitLayer[] = JSON.parse(byId.layers_json);
+                    setActiveOutfitLayers(layers);
+                    return;
+                }
+            }
+
+            // Si no hay id específico, usar la primera opción del día (si existe)
+            const existing = await getOutfitByDate(date);
+            if (existing) {
+                setOutfitId(existing.id);
+                const layers: OutfitLayer[] = JSON.parse(existing.layers_json);
+                setActiveOutfitLayers(layers);
+            } else {
+                setOutfitId(null);
+                setActiveOutfitLayers([]);
+            }
+        };
+
         loadOutfit();
         return () => clearActiveOutfit();
-    }, [date]);
-
-    const loadOutfit = async () => {
-        const existing = await getOutfitByDate(date);
-        if (existing) {
-            setOutfitId(existing.id);
-            const layers: OutfitLayer[] = JSON.parse(existing.layers_json);
-            setActiveOutfitLayers(layers);
-        } else {
-            setActiveOutfitLayers([]);
-        }
-    };
+    }, [date, initialOutfitId]);
 
     const handleSave = async () => {
         try {
@@ -177,10 +170,11 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
                 const newOutfit = await createOutfit(date, activeOutfit.layers);
                 setOutfitId(newOutfit.id);
             }
+            showToast({ type: 'success', message: 'Outfit guardado correctamente' });
             onBack();
         } catch (error) {
             console.error('Failed to save outfit:', error);
-            alert('Error al guardar');
+            showToast({ type: 'error', message: 'Error al guardar el outfit' });
         }
     };
 
@@ -189,6 +183,7 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
         if (confirm('¿Eliminar este outfit?')) {
             await deleteOutfit(outfitId);
             clearActiveOutfit();
+            showToast({ type: 'success', message: 'Outfit eliminado' });
             onBack();
         }
     };
@@ -220,13 +215,17 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
         // No permitir agregar la misma prenda más de una vez en el outfit
         const alreadyInOutfit = activeOutfit.layers.some((layer) => layer.garment_id === garment.id);
         if (alreadyInOutfit) {
+            showToast({ type: 'info', message: 'Esta prenda ya está en este outfit.' });
             return;
         }
 
         const nextSlot = getNextSlotForCategory(garment.category);
 
         if (!nextSlot) {
-            alert(`No hay más espacio para ${garment.category}. Máximo ${CATEGORY_SLOTS[garment.category].length} prendas.`);
+            showToast({
+                type: 'info',
+                message: `No hay más espacio para ${garment.category}. Máximo ${CATEGORY_SLOTS[garment.category].length} prendas.`,
+            });
             return;
         }
 
@@ -376,10 +375,10 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
     });
 
     return (
-        <div className="h-screen bg-slate-50 flex flex-col overflow-hidden relative">
-            {/* Top Bar - Z-index alto para que no lo tape la ropa */}
-            <div className="absolute top-0 left-0 right-0 z-50 bg-white/40 backdrop-blur-md border-b border-white/20 fade-in-down">
-                <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+            {/* Top Bar */}
+            <div className="sticky top-0 z-20 bg-white border-b border-slate-100 fade-in-down">
+                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
                     <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
                         <ArrowLeft className="w-5 h-5 text-slate-700" />
                     </button>
@@ -388,9 +387,26 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
 
                     <div className="flex gap-2">
                         {outfitId && (
-                            <button onClick={handleDelete} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 transition-colors">
-                                <Trash2 className="w-5 h-5 text-red-500" />
-                            </button>
+                            <>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const duplicated = await createOutfit(date, activeOutfit.layers);
+                                            setOutfitId(duplicated.id);
+                                            showToast({ type: 'success', message: 'Se creó una nueva opción para este día' });
+                                        } catch (error) {
+                                            console.error('Failed to duplicate outfit:', error);
+                                            showToast({ type: 'error', message: 'No se pudo duplicar el outfit' });
+                                        }
+                                    }}
+                                    className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-200 transition-colors"
+                                >
+                                    Duplicar
+                                </button>
+                                <button onClick={handleDelete} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 transition-colors">
+                                    <Trash2 className="w-5 h-5 text-red-500" />
+                                </button>
+                            </>
                         )}
                         <button onClick={handleSave} className="px-4 py-1.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
                             Guardar
@@ -399,11 +415,11 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
                 </div>
             </div>
 
-            {/* Canvas Area - Scroll limitado para evitar exceso de blanco */}
-            <div className="absolute inset-0 z-0 bg-white">
+            {/* Canvas Area - Fixed Slots with Swipe */}
+            <div className="flex-1 relative overflow-hidden bg-white">
                 <div
                     ref={canvasRef}
-                    className="absolute inset-0 px-2 pt-16 pb-40 overflow-y-auto touch-pan-y scrollbar-hide"
+                    className="absolute inset-0 p-8 overflow-auto touch-none"
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
                     onTouchEnd={handleTouchEnd}
@@ -483,24 +499,27 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
                 </div>
             </div>
 
-            {/* Bottom Sheet - Z-index alto */}
-            <div className="absolute bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t border-slate-100 pb-safe fade-in-up">
-                <div className="max-w-4xl mx-auto px-2 py-1.5">
-                    <div className="space-y-1">
-                        {/* Nivel 1: Categorías (Ahora solo texto minimalista) */}
+            {/* Bottom Sheet */}
+            <div className="bg-white border-t border-slate-200 pb-safe fade-in-up">
+                <div className="max-w-4xl mx-auto px-4 py-4">
+                    <div className="space-y-4">
+                        {/* Nivel 1: Categorías */}
                         {!selectedCategory && (
-                            <div className="flex justify-center">
+                            <>
                                 <CategorySelector
                                     selected={null}
-                                    className="gap-1 pb-0"
                                     onSelect={(cat) => {
                                         setSelectedCategory(cat);
                                         setSelectedSubCategory(null);
+                                        setSmallMessage(null);
                                         setShowCategoryMenu(false);
                                         setShowSubcategoryMenu(false);
                                     }}
                                 />
-                            </div>
+                                {smallMessage && (
+                                    <p className="text-[11px] text-red-500 mt-1">{smallMessage}</p>
+                                )}
+                            </>
                         )}
 
                         {/* Nivel 2: Subcategorías dentro de una categoría */}
@@ -511,6 +530,7 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
                                         onClick={() => {
                                             setSelectedCategory(null);
                                             setSelectedSubCategory(null);
+                                            setSmallMessage(null);
                                             setShowCategoryMenu(false);
                                             setShowSubcategoryMenu(false);
                                         }}
@@ -549,13 +569,15 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
                                                 onClick={() => {
                                                     setSelectedCategory(cat.key as GarmentCategory);
                                                     setSelectedSubCategory(null);
+                                                    setSmallMessage(null);
                                                     setShowCategoryMenu(false);
                                                     setShowSubcategoryMenu(false);
                                                 }}
-                                                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selectedCategory === cat.key
-                                                    ? 'bg-black text-white'
-                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                    }`}
+                                                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                                    selectedCategory === cat.key
+                                                        ? 'bg-black text-white'
+                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                }`}
                                             >
                                                 {cat.label}
                                             </button>
@@ -574,14 +596,15 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
                                                         key={sub}
                                                         onClick={() => {
                                                             setSelectedSubCategory(sub);
+                                                            setSmallMessage(null);
                                                         }}
                                                         className={`
-                               flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all
-                               ${selectedSubCategory === sub
+                              flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all
+                              ${selectedSubCategory === sub
                                                                 ? 'bg-black text-white'
                                                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                                             }
-                             `}
+                            `}
                                                     >
                                                         {sub}
                                                     </button>
@@ -599,11 +622,12 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
                                     <button
                                         onClick={() => {
                                             setSelectedSubCategory(null);
+                                            setSmallMessage(null);
                                             setShowSubcategoryMenu(false);
                                         }}
-                                        className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 py-1"
+                                        className="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1"
                                     >
-                                        <ArrowLeft className="w-4 h-4" />
+                                        <ArrowLeft className="w-3 h-3" />
                                         Subcategorías
                                     </button>
                                     <button
@@ -612,12 +636,12 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
                                             setShowSubcategoryMenu((prev) => !prev);
                                             setShowCategoryMenu(false);
                                         }}
-                                        className="text-sm font-bold text-slate-800 flex items-center gap-1 py-1 uppercase tracking-tight"
+                                        className="text-xs font-semibold text-slate-700 flex items-center gap-1"
                                     >
                                         {selectedSubCategory}
                                         <ChevronDown
                                             className={cn(
-                                                'w-4 h-4 transition-transform duration-150',
+                                                'w-3 h-3 transition-transform duration-150',
                                                 showSubcategoryMenu ? 'rotate-0' : 'rotate-180'
                                             )}
                                         />
@@ -626,7 +650,7 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
 
                                 {/* Menú rápido de subcategorías desde la etiqueta de la derecha */}
                                 {showSubcategoryMenu && (
-                                    <div className="flex gap-2 overflow-x-auto pb-3 justify-end mt-1 w-full touch-pan-x fade-in-up">
+                                    <div className="flex gap-2 overflow-x-auto pb-2 justify-end mt-1 w-full touch-pan-x fade-in-up">
                                         {availableSubCategories
                                             .filter((sub) => sub !== 'all')
                                             .map((sub) => (
@@ -634,12 +658,14 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
                                                     key={sub}
                                                     onClick={() => {
                                                         setSelectedSubCategory(sub);
+                                                        setSmallMessage(null);
                                                         setShowSubcategoryMenu(false);
                                                     }}
-                                                    className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-all ${selectedSubCategory === sub
-                                                        ? 'bg-black text-white'
-                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                        }`}
+                                                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                                        selectedSubCategory === sub
+                                                            ? 'bg-black text-white'
+                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                    }`}
                                                 >
                                                     {sub}
                                                 </button>
@@ -647,24 +673,16 @@ export function OutfitEditor({ date, onBack }: OutfitEditorProps) {
                                     </div>
                                 )}
 
-                                <p className="text-base font-bold text-slate-900 mb-3">Selecciona una prenda</p>
-                                <div
-                                    className={cn(
-                                        "grid gap-3 overflow-y-auto max-h-[40vh] pb-4 pr-1 scrollbar-hide transition-all duration-300",
-                                        gridColumns === 2 ? "grid-cols-2" : "grid-cols-3"
-                                    )}
-                                    onTouchStart={handlePinchStart}
-                                    onTouchMove={handlePinchMove}
-                                    onTouchEnd={() => setPinchDistance(null)}
-                                >
+                                <p className="text-sm font-semibold text-slate-700 mb-3">Selecciona una prenda</p>
+                                <div className="flex gap-3 overflow-x-auto pb-2">
                                     {categoryGarments.length === 0 ? (
-                                        <p className={`text-sm text-slate-50 py-4 text-center ${gridColumns === 2 ? 'col-span-2' : 'col-span-3'}`}>
+                                        <p className="text-sm text-slate-500">
                                             No hay prendas de tipo "{selectedSubCategory}"
                                         </p>
                                     ) : (
                                         categoryGarments.map((garment) => (
-                                            <div key={garment.id} className="flex justify-center">
-                                                <GarmentCard garment={garment} size="md" onClick={() => handleAddGarment(garment)} />
+                                            <div key={garment.id} className="flex-shrink-0">
+                                                <GarmentCard garment={garment} size="sm" onClick={() => handleAddGarment(garment)} />
                                             </div>
                                         ))
                                     )}

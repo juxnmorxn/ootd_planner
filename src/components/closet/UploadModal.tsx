@@ -6,6 +6,7 @@ import { useGarments } from '../../hooks/useGarments';
 import { compressImage, removeBackgroundFromImage } from '../../lib/img-process';
 import { getCategoryInfo } from '../../lib/utils';
 import type { GarmentCategory } from '../../types';
+import { useToast } from '../ui/Toast';
 
 interface UploadModalProps {
     category: GarmentCategory;
@@ -21,6 +22,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
     const [loadingText, setLoadingText] = useState('');
     const [useAI, setUseAI] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { showToast } = useToast();
 
     const categoryInfo = getCategoryInfo(category);
 
@@ -55,7 +57,10 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
             }
         } catch (error) {
             console.error('Failed to process image:', error);
-            alert('Error al procesar la imagen: ' + (error instanceof Error ? error.message : 'Desconocido'));
+            showToast({
+                type: 'error',
+                message: 'Error al procesar la imagen: ' + (error instanceof Error ? error.message : 'Desconocido'),
+            });
         } finally {
             setLoading(false);
             setLoadingText('');
@@ -76,11 +81,17 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                 category,
                 sub_category: selectedSubCategory,
             });
-
+            showToast({
+                type: 'success',
+                message: 'Prenda guardada en tu clóset',
+            });
             onClose();
         } catch (error) {
             console.error('Failed to save garment:', error);
-            alert('Error al guardar la prenda');
+            showToast({
+                type: 'error',
+                message: 'Error al guardar la prenda',
+            });
         } finally {
             setLoading(false);
             setLoadingText('');
@@ -88,7 +99,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">

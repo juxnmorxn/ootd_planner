@@ -12,6 +12,7 @@ import { AdminUsers } from './pages/AdminUsers';
 
 function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [dbInitialized, setDbInitialized] = useState(false);
   const currentUser = useStore((state) => state.currentUser);
   const logout = useStore((state) => state.logout);
@@ -60,14 +61,16 @@ function App() {
     setView('calendar');
   };
 
-  const handleEditOutfit = (date: string) => {
+  const handleEditOutfit = (date: string, outfitId?: string) => {
     setSelectedDate(date);
+    setSelectedOutfitId(outfitId || null);
     setView('outfit-editor');
   };
 
   const handleBackToCalendar = () => {
     setView('calendar');
     setSelectedDate(null);
+    setSelectedOutfitId(null);
   };
 
   const handleNavigate = (item: 'calendar' | 'closet' | 'settings') => {
@@ -114,7 +117,7 @@ function App() {
       )}
 
       {safeView === 'outfit-editor' && selectedDate && (
-        <OutfitEditor date={selectedDate} onBack={handleBackToCalendar} />
+        <OutfitEditor date={selectedDate} outfitId={selectedOutfitId || undefined} onBack={handleBackToCalendar} />
       )}
 
       {safeView === 'closet' && <Closet />}

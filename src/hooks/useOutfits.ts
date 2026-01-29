@@ -93,6 +93,21 @@ export function useOutfits() {
         return await db.getOutfitByDate(currentUser.id, date);
     };
 
+    const getOutfitById = async (id: string): Promise<Outfit | null> => {
+        if (!currentUser) return null;
+        return await db.getOutfitById(id);
+    };
+
+    const getOutfitOptionsByDate = async (date: string): Promise<Outfit[]> => {
+        if (!currentUser) return [];
+        return await db.getOutfitOptionsByDate(currentUser.id, date);
+    };
+
+    const duplicateOutfit = async (source: Outfit): Promise<Outfit> => {
+        const layers: OutfitLayer[] = JSON.parse(source.layers_json);
+        return await createOutfit(source.date_scheduled, layers);
+    };
+
     const refresh = () => {
         loadOutfits();
     };
@@ -105,6 +120,9 @@ export function useOutfits() {
         updateOutfit,
         deleteOutfit,
         getOutfitByDate,
+        getOutfitById,
+        getOutfitOptionsByDate,
+        duplicateOutfit,
         refresh,
     };
 }

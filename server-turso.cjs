@@ -52,21 +52,78 @@ async function initDb() {
     );
   `);
 
-  // Outfits
+  // Outfits: permitir múltiples opciones por día (option_index)
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS outfits (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       date_scheduled TEXT NOT NULL,
+      option_index INTEGER NOT NULL DEFAULT 1,
       layers_json TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(user_id, date_scheduled)
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
 
+  // Índice único por usuario/fecha/opción
+  await turso.execute(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_outfits_user_date_option
+    ON outfits(user_id, date_scheduled, option_index);
+  `);
+
+  // Migrar esquemas antiguos si es necesario
+  await migrateOutfitsTable();
+
   console.log('[Turso] Schema ensured');
+}
+
+// Migración defensiva para la tabla outfits en Turso (añadir option_index si no existe)
+async function migrateOutfitsTable() {
+  try {
+    const { rows } = await turso.execute(`PRAGMA table_info(outfits)`);
+    if (!rows || rows.length === 0) {
+      return; // tabla aún no existe
+    }
+
+    const names = new Set(rows.map((c) => c.name));
+
+    if (!names.has('option_index')) {
+      await turso.execute('BEGIN TRANSACTION');
+
+      await turso.execute(`
+        CREATE TABLE IF NOT EXISTS outfits_new (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          date_scheduled TEXT NOT NULL,
+          option_index INTEGER NOT NULL DEFAULT 1,
+          layers_json TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+      `);
+
+      await turso.execute(`
+        INSERT INTO outfits_new (id, user_id, date_scheduled, option_index, layers_json, created_at, updated_at)
+        SELECT id, user_id, date_scheduled, 1 as option_index, layers_json,
+               COALESCE(created_at, datetime('now')), COALESCE(updated_at, datetime('now'))
+        FROM outfits;
+      `);
+
+      await turso.execute('DROP TABLE outfits');
+      await turso.execute("ALTER TABLE outfits_new RENAME TO outfits");
+
+      await turso.execute('COMMIT');
+    }
+
+    await turso.execute(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_outfits_user_date_option
+      ON outfits(user_id, date_scheduled, option_index);
+    `);
+  } catch (error) {
+    console.error('[Turso] Outfits table migration error:', error);
+  }
 }
 
 // Middleware
@@ -476,9 +533,10 @@ app.delete('/api/garments/:id', async (req, res) => {
 
 // ============ OUTFITS ============
 
+// Crear una nueva opción de outfit para una fecha.
 app.post('/api/outfits', async (req, res) => {
   try {
-    let { id, user_id, date_scheduled, layers_json } = req.body;
+    let { id, user_id, date_scheduled, layers_json, option_index } = req.body;
     if (!user_id || !date_scheduled || !layers_json) {
       return res.status(400).json({ error: 'Datos incompletos para crear outfit' });
     }
@@ -488,42 +546,34 @@ app.post('/api/outfits', async (req, res) => {
       layers_json = JSON.stringify(layers_json);
     }
 
-    const { rows: existing } = await turso.execute({
-      sql: 'SELECT id FROM outfits WHERE user_id = ?1 AND date_scheduled = ?2',
-      args: [user_id, date_scheduled],
-    });
-
-    if (existing.length > 0) {
-      await turso.execute({
-        sql: 'UPDATE outfits SET layers_json = ?1, updated_at = ?2 WHERE id = ?3',
-        args: [layers_json, now, existing[0].id],
+    // Calcular option_index si no viene
+    if (option_index == null) {
+      const { rows: maxRows } = await turso.execute({
+        sql: 'SELECT MAX(option_index) as maxOpt FROM outfits WHERE user_id = ?1 AND date_scheduled = ?2',
+        args: [user_id, date_scheduled],
       });
-
-      return res.json({
-        id: existing[0].id,
-        user_id,
-        date_scheduled,
-        layers_json,
-      });
+      const maxOpt = maxRows.length && maxRows[0].maxOpt != null ? Number(maxRows[0].maxOpt) : 0;
+      option_index = maxOpt + 1;
     }
 
     const outfitId = id || randomUUID();
     await turso.execute({
-      sql: 'INSERT INTO outfits (id, user_id, date_scheduled, layers_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
-      args: [outfitId, user_id, date_scheduled, layers_json, now, now],
+      sql: 'INSERT INTO outfits (id, user_id, date_scheduled, option_index, layers_json, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
+      args: [outfitId, user_id, date_scheduled, option_index, layers_json, now, now],
     });
 
-    res.json({ id: outfitId, user_id, date_scheduled, layers_json });
+    res.json({ id: outfitId, user_id, date_scheduled, option_index, layers_json });
   } catch (error) {
     console.error('[API] Create outfit error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
+// Obtener la primera opción de outfit para una fecha (por compatibilidad)
 app.get('/api/outfits/user/:userId/date/:date', async (req, res) => {
   try {
     const { rows } = await turso.execute({
-      sql: 'SELECT * FROM outfits WHERE user_id = ?1 AND date_scheduled = ?2',
+      sql: 'SELECT * FROM outfits WHERE user_id = ?1 AND date_scheduled = ?2 ORDER BY option_index ASC LIMIT 1',
       args: [req.params.userId, req.params.date],
     });
 
@@ -534,8 +584,31 @@ app.get('/api/outfits/user/:userId/date/:date', async (req, res) => {
       id: o.id,
       user_id: o.user_id,
       date_scheduled: o.date_scheduled,
+      option_index: o.option_index,
       layers_json: o.layers_json,
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtener todas las opciones de outfit para una fecha
+app.get('/api/outfits/user/:userId/date/:date/options', async (req, res) => {
+  try {
+    const { rows } = await turso.execute({
+      sql: 'SELECT * FROM outfits WHERE user_id = ?1 AND date_scheduled = ?2 ORDER BY option_index ASC',
+      args: [req.params.userId, req.params.date],
+    });
+
+    res.json(
+      rows.map((o) => ({
+        id: o.id,
+        user_id: o.user_id,
+        date_scheduled: o.date_scheduled,
+        option_index: o.option_index,
+        layers_json: o.layers_json,
+      }))
+    );
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -544,16 +617,44 @@ app.get('/api/outfits/user/:userId/date/:date', async (req, res) => {
 app.get('/api/outfits/user/:userId', async (req, res) => {
   try {
     const { rows } = await turso.execute({
-      sql: 'SELECT * FROM outfits WHERE user_id = ?1 ORDER BY date_scheduled DESC',
+      sql: 'SELECT * FROM outfits WHERE user_id = ?1 ORDER BY date_scheduled DESC, option_index ASC',
       args: [req.params.userId],
     });
 
-    res.json(rows.map(o => ({
+    res.json(
+      rows.map((o) => ({
+        id: o.id,
+        user_id: o.user_id,
+        date_scheduled: o.date_scheduled,
+        option_index: o.option_index,
+        layers_json: o.layers_json,
+      }))
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtener un outfit por ID
+app.get('/api/outfits/:id', async (req, res) => {
+  try {
+    const { rows } = await turso.execute({
+      sql: 'SELECT * FROM outfits WHERE id = ?1',
+      args: [req.params.id],
+    });
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Outfit not found' });
+    }
+
+    const o = rows[0];
+    res.json({
       id: o.id,
       user_id: o.user_id,
       date_scheduled: o.date_scheduled,
+      option_index: o.option_index,
       layers_json: o.layers_json,
-    })));
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

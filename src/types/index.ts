@@ -36,6 +36,8 @@ export interface Outfit {
     id: string; // UUID
     user_id: string; // UUID - CHANGED from number
     date_scheduled: string; // ISO format 'YYYY-MM-DD'
+    // Número de opción dentro de ese día (1, 2, 3, ...)
+    option_index?: number;
     layers_json: string; // JSON string of OutfitLayer[]
 }
 

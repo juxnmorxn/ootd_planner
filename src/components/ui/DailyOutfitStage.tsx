@@ -6,30 +6,32 @@ import type { OutfitLayer, Outfit, GarmentCategory } from '../../types';
 
 interface DailyOutfitStageProps {
     selectedDate: string;
-    onEditOutfit: () => void;
+    onEditOutfit: (outfitId?: string) => void;
 }
 
 export function DailyOutfitStage({ selectedDate, onEditOutfit }: DailyOutfitStageProps) {
-    const { getOutfitByDate } = useOutfits();
+    const { getOutfitOptionsByDate } = useOutfits();
     const { garments: allGarments } = useGarments();
-    const [outfit, setOutfit] = useState<Outfit | null>(null);
+    const [options, setOptions] = useState<Outfit[]>([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        loadOutfit();
-    }, [selectedDate]);
+        const loadOptions = async () => {
+            setLoading(true);
+            try {
+                const data = await getOutfitOptionsByDate(selectedDate);
+                setOptions(data);
+                setCurrentIndex(0);
+            } catch (error) {
+                console.error('Failed to load outfits:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    const loadOutfit = async () => {
-        setLoading(true);
-        try {
-            const data = await getOutfitByDate(selectedDate);
-            setOutfit(data);
-        } catch (error) {
-            console.error('Failed to load outfit:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        loadOptions();
+    }, [selectedDate]);
 
     if (loading) {
         return (
@@ -39,11 +41,23 @@ export function DailyOutfitStage({ selectedDate, onEditOutfit }: DailyOutfitStag
         );
     }
 
-    if (!outfit) {
-        return <EmptyStatePlaceholder onCreateOutfit={onEditOutfit} />;
+    if (options.length === 0) {
+        return <EmptyStatePlaceholder onCreateOutfit={() => onEditOutfit(undefined)} />;
     }
 
-    return <OutfitDisplay outfit={outfit} allGarments={allGarments} onEdit={onEditOutfit} />;
+    const currentOutfit = options[Math.min(currentIndex, options.length - 1)];
+
+    return (
+        <OutfitDisplay
+            outfit={currentOutfit}
+            optionIndex={currentIndex + 1}
+            totalOptions={options.length}
+            allGarments={allGarments}
+            onEdit={() => onEditOutfit(currentOutfit.id)}
+            onPreviousOption={() => setCurrentIndex((idx) => (idx > 0 ? idx - 1 : idx))}
+            onNextOption={() => setCurrentIndex((idx) => (idx < options.length - 1 ? idx + 1 : idx))}
+        />
+    );
 }
 
 // Empty State Component
@@ -53,14 +67,6 @@ function EmptyStatePlaceholder({ onCreateOutfit }: { onCreateOutfit: () => void 
             onClick={onCreateOutfit}
             className="flex-1 flex items-center justify-center bg-white relative overflow-hidden touch-manipulation group"
         >
-            {/* Mannequin Silhouette Background */}
-            <svg viewBox="0 0 200 400" className="absolute h-3/4 opacity-5 group-hover:opacity-10 transition-opacity" fill="currentColor">
-                <ellipse cx="100" cy="50" rx="30" ry="40" />
-                <rect x="70" y="90" width="60" height="120" rx="10" />
-                <rect x="60" y="210" width="35" height="180" rx="8" />
-                <rect x="105" y="210" width="35" height="180" rx="8" />
-            </svg>
-
             {/* CTA */}
             <div className="relative z-10 text-center px-8">
                 <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:shadow-md transition-shadow border-2 border-slate-100">
@@ -74,9 +80,30 @@ function EmptyStatePlaceholder({ onCreateOutfit }: { onCreateOutfit: () => void 
 }
 
 // Outfit Display Component with Swipe
-function OutfitDisplay({ outfit, allGarments, onEdit }: { outfit: Outfit; allGarments: any[]; onEdit: () => void }) {
+function OutfitDisplay({
+    outfit,
+    optionIndex,
+    totalOptions,
+    allGarments,
+    onEdit,
+    onPreviousOption,
+    onNextOption,
+}: {
+    outfit: Outfit;
+    optionIndex: number;
+    totalOptions: number;
+    allGarments: any[];
+    onEdit: () => void;
+    onPreviousOption: () => void;
+    onNextOption: () => void;
+}) {
     const { updateOutfit } = useOutfits();
-    const [layers, setLayers] = useState<OutfitLayer[]>(JSON.parse(outfit.layers_json));
+    const [layers, setLayers] = useState<OutfitLayer[]>(() => JSON.parse(outfit.layers_json));
+
+    // Sincronizar las capas cuando cambiamos de opción o se recarga desde el servidor
+    useEffect(() => {
+        setLayers(JSON.parse(outfit.layers_json));
+    }, [outfit.id, outfit.layers_json]);
     const [swipeStart, setSwipeStart] = useState<{ x: number; y: number; garmentId: string } | null>(null);
 
     const getGarmentById = (id: string) => {
@@ -189,6 +216,37 @@ function OutfitDisplay({ outfit, allGarments, onEdit }: { outfit: Outfit; allGar
             <div className="absolute top-3 left-3 z-20 bg-black/80 backdrop-blur-sm text-white px-3 py-2 rounded-full text-xs font-medium">
                 {layers.length} {layers.length === 1 ? 'prenda' : 'prendas'}
             </div>
+
+            {/* Option indicator - Bottom Right */}
+            {totalOptions > 1 && (
+                <div className="absolute bottom-3 right-3 z-20 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onPreviousOption();
+                        }}
+                        className="text-white/70 hover:text-white disabled:opacity-30 disabled:hover:text-white/70"
+                        disabled={optionIndex <= 1}
+                    >
+                        ←
+                    </button>
+                    <span>
+                        Opción {optionIndex} de {totalOptions}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onNextOption();
+                        }}
+                        className="text-white/70 hover:text-white disabled:opacity-30 disabled:hover:text-white/70"
+                        disabled={optionIndex >= totalOptions}
+                    >
+                        →
+                    </button>
+                </div>
+            )}
 
             {/* Swipe Hint - Bottom Left */}
             <div className="absolute bottom-3 left-3 z-20 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium">

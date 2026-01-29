@@ -3,6 +3,7 @@ import { ArrowLeft, Users, Shield, User as UserIcon, Trash2, Mail, Image as Imag
 import { apiDb } from '../lib/api-db';
 import type { User, Garment } from '../types';
 import { useStore } from '../lib/store';
+import { useToast } from '../components/ui/Toast';
 
 interface AdminUsersProps {
     onBack: () => void;
@@ -16,6 +17,7 @@ export function AdminUsers({ onBack }: AdminUsersProps) {
     const [loadingGarments, setLoadingGarments] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const currentUser = useStore((state) => state.currentUser);
+    const { showToast } = useToast();
 
     const loadUsers = async () => {
         try {
@@ -37,7 +39,10 @@ export function AdminUsers({ onBack }: AdminUsersProps) {
             setUserGarments(data);
             setSelectedUser(user);
         } catch (err) {
-            alert('Error al cargar prendas del usuario');
+            showToast({
+                type: 'error',
+                message: 'Error al cargar prendas del usuario',
+            });
             console.error(err);
         } finally {
             setLoadingGarments(false);
@@ -53,8 +58,15 @@ export function AdminUsers({ onBack }: AdminUsersProps) {
             try {
                 await apiDb.deleteUser(user.id);
                 setUsers(users.filter(u => u.id !== user.id));
+                showToast({
+                    type: 'success',
+                    message: `Usuario ${user.username} eliminado correctamente`,
+                });
             } catch (err) {
-                alert('No se pudo eliminar el usuario');
+                showToast({
+                    type: 'error',
+                    message: 'No se pudo eliminar el usuario',
+                });
             }
         }
     };
