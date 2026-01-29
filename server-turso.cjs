@@ -66,13 +66,7 @@ async function initDb() {
     );
   `);
 
-  // Índice único por usuario/fecha/opción
-  await turso.execute(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_outfits_user_date_option
-    ON outfits(user_id, date_scheduled, option_index);
-  `);
-
-  // Migrar esquemas antiguos si es necesario
+  // Migrar esquemas antiguos si es necesario (añadir option_index si falta)
   await migrateOutfitsTable();
 
   console.log('[Turso] Schema ensured');
