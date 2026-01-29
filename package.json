@@ -11,6 +11,7 @@
     "build": "tsc -b && vite build",
     "build:full": "npm run build",
     "start": "node server.cjs",
+    "start:turso": "node server-turso.cjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
