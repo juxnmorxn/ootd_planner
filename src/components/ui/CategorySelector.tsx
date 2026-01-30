@@ -12,13 +12,13 @@ export function CategorySelector({ selected, onSelect, className }: CategorySele
     const categories = getAllCategories();
 
     return (
-        <div className={cn('flex gap-2 overflow-x-auto pb-2 scrollbar-hide', className)}>
+        <div className={cn('flex gap-2 overflow-x-auto pb-1.5 scrollbar-hide', className)}>
             {categories.map((cat) => (
                 <button
                     key={cat.key}
                     onClick={() => onSelect(cat.key)}
                     className={cn(
-                        'flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all uppercase tracking-wider',
+                        'flex-shrink-0 px-3 py-1.5 rounded-full text-[15px] font-semibold transition-all uppercase tracking-wider',
                         selected === cat.key
                             ? 'bg-black text-white'
                             : 'bg-transparent text-slate-400 hover:text-slate-600'

@@ -208,7 +208,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                                 </div>
 
                                 <div
-                                    className="aspect-square bg-slate-100 rounded-2xl flex items-center justify-center p-8 relative overflow-hidden ring-1 ring-slate-100"
+                                    className="w-40 h-40 bg-slate-100 rounded-2xl flex items-center justify-center relative overflow-hidden ring-1 ring-slate-100"
                                     style={{
                                         backgroundImage: 'repeating-conic-gradient(#f8fafc 0% 25%, #e2e8f0 0% 50%)',
                                         backgroundSize: '20px 20px',
@@ -233,7 +233,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
 
                             {/* Sub-category Selection */}
                             <div className="mb-6">
-                                <label className="block text-sm font-semibold text-slate-700 mb-3">
+                                <label className="block text-lg font-bold text-slate-800 mb-3">
                                     ¿Qué tipo de {categoryInfo.label.toLowerCase()} es?
                                 </label>
                                 <div className="grid grid-cols-2 gap-2">
@@ -242,7 +242,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                                             key={sub}
                                             onClick={() => setSelectedSubCategory(sub)}
                                             className={`
-                        px-4 py-3 rounded-xl text-sm font-medium transition-all border-2
+                        px-4 py-3 rounded-xl text-base font-semibold transition-all border-2
                         ${selectedSubCategory === sub
                                                     ? 'bg-black text-white border-black shadow-lg shadow-black/10'
                                                     : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'

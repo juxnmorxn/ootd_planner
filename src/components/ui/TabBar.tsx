@@ -13,13 +13,13 @@ interface TabBarProps {
 
 export function TabBar({ tabs, activeTab, onTabChange, className }: TabBarProps) {
     return (
-        <div className={cn('flex gap-2 overflow-x-auto pb-2 scrollbar-hide', className)}>
+        <div className={cn('flex gap-2 overflow-x-auto pb-1.5 scrollbar-hide', className)}>
             {tabs.map((tab) => (
                 <button
                     key={tab.key}
                     onClick={() => onTabChange(tab.key)}
                     className={cn(
-                        'flex items-center gap-2 px-4 py-1.5 rounded-full whitespace-nowrap transition-all text-sm font-medium touch-manipulation',
+                        'flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap transition-all text-[15px] font-semibold touch-manipulation',
                         activeTab === tab.key
                             ? 'bg-black text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'

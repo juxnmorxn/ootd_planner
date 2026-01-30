@@ -486,15 +486,7 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                 );
                             })}
 
-                        {activeOutfit.layers.length === 0 && (
-                            <div className="absolute inset-0 flex items-center justify-center fade-in-up">
-                                <div className="text-center">
-                                    <div className="text-6xl mb-4">👕</div>
-                                    <p className="text-slate-400 text-lg font-medium">Selecciona prendas abajo para crear tu outfit</p>
-                                    <p className="text-slate-300 text-sm mt-2">Desliza → o ← para rotar prendas</p>
-                                </div>
-                            </div>
-                        )}
+                        {/* Si no hay prendas, solo deja los espacios guía, sin mensaje ni ícono */}
                     </div>
                 </div>
             </div>
