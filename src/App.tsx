@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { db } from './lib/db';
 import { useStore } from './lib/store';
 import { Auth } from './pages/Auth';
@@ -14,6 +14,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [dbInitialized, setDbInitialized] = useState(false);
+  const isProcessingHistoryRef = useRef(false);
   const currentUser = useStore((state) => state.currentUser);
   const logout = useStore((state) => state.logout);
   const view = useStore((state) => state.currentView);
@@ -31,6 +32,44 @@ function App() {
   useEffect(() => {
     initializeDatabase();
   }, []);
+
+  // Manejo del historial y gestos de navegación del sistema
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state;
+      if (state && state.appView) {
+        isProcessingHistoryRef.current = true;
+        setView(state.appView);
+        if (state.selectedDate) setSelectedDate(state.selectedDate);
+        if (state.selectedOutfitId) setSelectedOutfitId(state.selectedOutfitId);
+        setTimeout(() => {
+          isProcessingHistoryRef.current = false;
+        }, 0);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // Sincronizar cambios de vista con el historial del navegador
+  useEffect(() => {
+    if (!currentUser || isProcessingHistoryRef.current) return;
+
+    const state = {
+      appView: safeView,
+      selectedDate,
+      selectedOutfitId,
+      timestamp: Date.now(),
+    };
+
+    // Usa replaceState para la primera carga, pushState para cambios
+    if (window.history.state?.appView !== safeView) {
+      window.history.pushState(state, '', window.location.href);
+    }
+  }, [safeView, selectedDate, selectedOutfitId, currentUser]);
 
   useEffect(() => {
     // Si el view rehidratado es inválido, resetea a 'auth'
@@ -108,28 +147,29 @@ function App() {
   const navActive = (safeView === 'calendar' ? 'calendar' : safeView === 'closet' ? 'closet' : 'calendar') as 'calendar' | 'closet';
 
   return (
-    <div className="relative min-h-screen">
-      {safeView === 'calendar' && (
-        <CalendarHome
-          onEditOutfit={handleEditOutfit}
-          onOpenMenu={() => setView('closet')}
-        />
-      )}
+    <div className="relative min-h-screen flex flex-col safe-area-inset-top safe-area-inset-bottom">
+      <div className="flex-1 flex flex-col">
+        {safeView === 'calendar' && (
+          <CalendarHome
+            onEditOutfit={handleEditOutfit}
+            onOpenMenu={() => setView('closet')}
+          />
+        )}
 
-      {safeView === 'outfit-editor' && selectedDate && (
-        <OutfitEditor date={selectedDate} outfitId={selectedOutfitId || undefined} onBack={handleBackToCalendar} />
-      )}
+        {safeView === 'outfit-editor' && selectedDate && (
+          <OutfitEditor date={selectedDate} outfitId={selectedOutfitId || undefined} onBack={handleBackToCalendar} />
+        )}
 
-      {safeView === 'closet' && <Closet />}
+        {safeView === 'closet' && <Closet />}
 
-      {safeView === 'profile' && (
-        <Profile onBack={() => setView('calendar')} onLogout={handleLogout} />
-      )}
+        {safeView === 'profile' && (
+          <Profile onBack={() => setView('calendar')} onLogout={handleLogout} />
+        )}
 
-      {safeView === 'admin-users' && (
-        <AdminUsers onBack={() => setView('profile')} />
-      )}
-
+        {safeView === 'admin-users' && (
+          <AdminUsers onBack={() => setView('profile')} />
+        )}
+      </div>
       {showBottomNav && (
         <BottomNav
           active={navActive}

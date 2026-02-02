@@ -23,10 +23,10 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@imgly/background-removal": "^1.7.0",
+    "@libsql/client": "^0.14.0",
     "autoprefixer": "^10.4.23",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
-    "@libsql/client": "^0.14.0",
     "cloudinary": "^2.9.0",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
@@ -65,6 +65,6 @@
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
+    "vite": "^7.3.1"
   }
 }

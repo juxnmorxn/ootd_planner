@@ -18,8 +18,8 @@ export function BottomNav({ active, onNavigate }: BottomNavProps) {
     ];
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 safe-area-inset-bottom z-50">
-            <div className="flex justify-around items-center h-full max-w-md mx-auto">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50" style={{paddingBottom: 'env(safe-area-inset-bottom)', height: 'calc(4rem + env(safe-area-inset-bottom))'}}>
+            <div className="flex justify-around items-center h-16 max-w-md mx-auto">
                 {items.map((item) => {
                     const Icon = item.icon;
                     const isActive = active === item.key;
