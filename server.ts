@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { db } from './src/lib/sqlite-db';
 import type { Garment, Outfit, User, Contact, Conversation, Message } from './src/types';
 import { v4 as uuidv4 } from 'uuid';
+import { uploadImageToCloudinary } from './src/lib/cloudinary';
 
 const app = express();
 const PORT = 3001;
@@ -161,6 +162,24 @@ app.delete('/api/garments/:id', async (req, res) => {
         await db.deleteGarment(req.params.id, userId as string);
         res.json({ success: true });
     } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ CLOUDINARY (IMAGES) ============
+
+app.post('/api/cloudinary/upload', async (req, res) => {
+    try {
+        const { imageData, userId, garmentId } = req.body;
+
+        if (!imageData || !userId || !garmentId) {
+            return res.status(400).json({ error: 'imageData, userId y garmentId requeridos' });
+        }
+
+        const url = await uploadImageToCloudinary(imageData, userId, garmentId);
+        res.json({ url });
+    } catch (error: any) {
+        console.error('[API] Cloudinary upload error:', error);
         res.status(500).json({ error: error.message });
     }
 });

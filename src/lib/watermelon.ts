@@ -8,7 +8,6 @@ import { synchronize } from '@nozbe/watermelondb/sync';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import { schema } from './db-schema';
 import { UserModel, GarmentModel, OutfitModel } from './db-models';
-import { uploadImageToCloudinary } from './cloudinary';
 
 let watermelonDb: Database | null = null;
 let initialized = false;
@@ -55,7 +54,7 @@ export async function getWatermelonDb() {
  * Procesa imágenes pendientes de subir a Cloudinary
  * Se llama antes de sincronizar cambios al servidor
  */
-async function processPendingImageUploads(userId: string) {
+async function processPendingImageUploads(userId: string, apiUrl: string) {
   try {
     const db = await getWatermelonDb();
     const collection = db.get<GarmentModel>('garments');
@@ -70,13 +69,24 @@ async function processPendingImageUploads(userId: string) {
       if (garment.image_url?.startsWith('data:')) {
         try {
           console.log(`[WatermelonDB] Uploading pending image for garment ${garment.id}...`);
-          
-          // Subir base64 a Cloudinary
-          const cloudinaryUrl = await uploadImageToCloudinary(
-            garment.image_url,
-            userId,
-            garment.id
-          );
+
+          // Subir base64 a Cloudinary a través del backend
+          const response = await fetch(`${apiUrl}/cloudinary/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageData: garment.image_url,
+              userId,
+              garmentId: garment.id,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Cloudinary upload failed: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          const cloudinaryUrl = data.url as string;
 
           // Actualizar garment localmente con URL de Cloudinary
           await db.write(async () => {
@@ -106,7 +116,7 @@ export async function syncDatabase(userId: string, apiUrl: string) {
     console.log('[WatermelonDB] Starting sync...');
 
     // Procesar pending image uploads ANTES de sync
-    await processPendingImageUploads(userId);
+    await processPendingImageUploads(userId, apiUrl);
 
     const db = await getWatermelonDb();
 
