@@ -8,9 +8,27 @@ interface AppState {
     setCurrentUser: (user: User | null) => void;
     logout: () => void;
 
-    // Current view (auth, calendar, closet, etc.)
-    currentView: 'auth' | 'calendar' | 'outfit-editor' | 'closet' | 'profile' | 'admin-users';
-    setCurrentView: (view: 'auth' | 'calendar' | 'outfit-editor' | 'closet' | 'profile' | 'admin-users') => void;
+    // Current view (auth, calendar, closet, chats, etc.)
+    currentView:
+        | 'auth'
+        | 'calendar'
+        | 'outfit-editor'
+        | 'closet'
+        | 'profile'
+        | 'admin-users'
+        | 'contacts'
+        | 'chats';
+    setCurrentView: (
+        view:
+            | 'auth'
+            | 'calendar'
+            | 'outfit-editor'
+            | 'closet'
+            | 'profile'
+            | 'admin-users'
+            | 'contacts'
+            | 'chats'
+    ) => void;
 
     // Active outfit being edited
     activeOutfit: {

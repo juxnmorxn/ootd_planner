@@ -1,0 +1,139 @@
+.chats-page {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    height: calc(100vh - 80px);
+    gap: 1px;
+    background: #e9ecef;
+}
+
+.conversations-list {
+    background: #fff;
+    overflow-y: auto;
+    border-right: 1px solid #e9ecef;
+    display: flex;
+    flex-direction: column;
+}
+
+.conversations-list h1 {
+    margin: 0;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    font-size: 1.5rem;
+    color: #333;
+}
+
+.loading,
+.no-chats {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: #999;
+}
+
+.conversations-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.conversation-item {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.conversation-item:hover {
+    background: #f9f9f9;
+}
+
+.conversation-item.active {
+    background: #e7f0ff;
+    border-left: 4px solid #007bff;
+    padding-left: calc(1rem - 4px);
+}
+
+.conv-header {
+    display: flex;
+    gap: 1rem;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+}
+
+.conv-header .profile-pic {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.conv-info h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.conv-info .last-message {
+    margin: 0.25rem 0 0 0;
+    color: #999;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.unread-badge {
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.chat-main {
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.no-chat-selected {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #999;
+    font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+    .chats-page {
+        grid-template-columns: 1fr;
+    }
+
+    .conversations-list {
+        position: absolute;
+        left: -300px;
+        top: 0;
+        width: 300px;
+        height: 100%;
+        border-right: 1px solid #ddd;
+        transition: left 0.3s;
+        z-index: 100;
+    }
+
+    .conversations-list.open {
+        left: 0;
+    }
+}

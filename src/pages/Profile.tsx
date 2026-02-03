@@ -298,6 +298,31 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                     </div>
                 )}
 
+                {/* Social & Contacts */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Contactos y Chats</h3>
+                    <p className="text-sm text-slate-600 mb-4 text-left">
+                        Agrega amigos por su nombre de usuario, gestiona solicitudes de amistad y chatea solo con tus contactos aceptados.
+                    </p>
+                    <div className="flex flex-col gap-3">
+                        <Button
+                            variant="secondary"
+                            onClick={() => setView('contacts')}
+                            className="w-full flex items-center justify-center gap-2"
+                        >
+                            <Users className="w-4 h-4" />
+                            Ver contactos y solicitudes
+                        </Button>
+                        <Button
+                            onClick={() => setView('chats')}
+                            className="w-full flex items-center justify-center gap-2"
+                        >
+                            💬
+                            Ir a chats
+                        </Button>
+                    </div>
+                </div>
+
                 {/* Edit Profile */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                     <h3 className="text-lg font-semibold text-slate-900 mb-4">Información Personal</h3>

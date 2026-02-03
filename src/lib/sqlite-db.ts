@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import type { Garment, Outfit, User } from '../types';
+import type { Garment, Outfit, User, Contact, Conversation, Message } from '../types';
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from './cloudinary';
 
 const DB_PATH = path.join(process.cwd(), 'outfit-planner.db');
@@ -69,6 +69,82 @@ class SQLiteDatabase {
         this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_outfits_user_date 
       ON outfits(user_id, date_scheduled)
+    `);
+
+        // ============ CHAT TABLES ============
+
+        // Tabla de contactos/amigos
+        this.db.exec(`
+      CREATE TABLE IF NOT EXISTS contacts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        contact_id TEXT NOT NULL,
+        status TEXT DEFAULT 'pendiente',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (contact_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(user_id, contact_id)
+      )
+    `);
+
+        this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_contacts_user 
+      ON contacts(user_id)
+    `);
+
+        this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_contacts_status 
+      ON contacts(status)
+    `);
+
+        // Tabla de conversaciones privadas
+        this.db.exec(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        user_id_1 TEXT NOT NULL,
+        user_id_2 TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id_1) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id_2) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(user_id_1, user_id_2)
+      )
+    `);
+
+        this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_conversations_users 
+      ON conversations(user_id_1, user_id_2)
+    `);
+
+        // Tabla de mensajes
+        this.db.exec(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        message_type TEXT DEFAULT 'text',
+        read INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+        this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_messages_conversation 
+      ON messages(conversation_id)
+    `);
+
+        this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_messages_sender 
+      ON messages(sender_id)
+    `);
+
+        this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_messages_created 
+      ON messages(created_at DESC)
     `);
     }
 
@@ -279,6 +355,247 @@ class SQLiteDatabase {
 
     deleteOutfit(id: string): void {
         const stmt = this.db.prepare('DELETE FROM outfits WHERE id = ?');
+        stmt.run(id);
+    }
+
+    // ============ CONTACTS ============
+
+    createContact(contact: Omit<Contact, 'created_at' | 'updated_at'>): Contact {
+        const now = new Date().toISOString();
+        const stmt = this.db.prepare(`
+      INSERT INTO contacts (id, user_id, contact_id, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+        stmt.run(
+            contact.id,
+            contact.user_id,
+            contact.contact_id,
+            contact.status,
+            now,
+            now
+        );
+
+        return {
+            id: contact.id,
+            user_id: contact.user_id,
+            contact_id: contact.contact_id,
+            status: contact.status,
+            created_at: now,
+            updated_at: now,
+        };
+    }
+
+    getContact(userId: string, contactId: string): Contact | null {
+        const stmt = this.db.prepare('SELECT * FROM contacts WHERE user_id = ? AND contact_id = ?');
+        const row = stmt.get(userId, contactId) as any;
+
+        if (!row) return null;
+
+        return {
+            id: row.id,
+            user_id: row.user_id,
+            contact_id: row.contact_id,
+            status: row.status,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        };
+    }
+
+    getContactsByUser(userId: string, status?: string): Contact[] {
+        const query = status
+            ? 'SELECT * FROM contacts WHERE user_id = ? AND status = ? ORDER BY created_at DESC'
+            : 'SELECT * FROM contacts WHERE user_id = ? ORDER BY created_at DESC';
+
+        const stmt = this.db.prepare(query);
+        const rows = status ? stmt.all(userId, status) as any[] : stmt.all(userId) as any[];
+
+        return rows.map((row) => ({
+            id: row.id,
+            user_id: row.user_id,
+            contact_id: row.contact_id,
+            status: row.status,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }));
+    }
+
+    // Solicitudes pendientes recibidas por un usuario (donde él es el contacto)
+    getPendingRequestsForUser(userId: string): Contact[] {
+        const stmt = this.db.prepare(
+            'SELECT * FROM contacts WHERE contact_id = ? AND status = ? ORDER BY created_at DESC'
+        );
+        const rows = stmt.all(userId, 'pendiente') as any[];
+
+        return rows.map((row) => ({
+            id: row.id,
+            user_id: row.user_id,
+            contact_id: row.contact_id,
+            status: row.status,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }));
+    }
+
+    updateContactStatus(userId: string, contactId: string, status: string): void {
+        const now = new Date().toISOString();
+        const stmt = this.db.prepare(
+            'UPDATE contacts SET status = ?, updated_at = ? WHERE user_id = ? AND contact_id = ?'
+        );
+        stmt.run(status, now, userId, contactId);
+    }
+
+    deleteContact(userId: string, contactId: string): void {
+        const stmt = this.db.prepare('DELETE FROM contacts WHERE user_id = ? AND contact_id = ?');
+        stmt.run(userId, contactId);
+    }
+
+    // ============ CONVERSATIONS ============
+
+    createConversation(conversation: Omit<Conversation, 'id' | 'created_at' | 'updated_at'> & { id: string }): Conversation {
+        const now = new Date().toISOString();
+        const stmt = this.db.prepare(`
+      INSERT INTO conversations (id, user_id_1, user_id_2, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+        stmt.run(conversation.id, conversation.user_id_1, conversation.user_id_2, now, now);
+
+        return {
+            id: conversation.id,
+            user_id_1: conversation.user_id_1,
+            user_id_2: conversation.user_id_2,
+            created_at: now,
+            updated_at: now,
+        };
+    }
+
+    getConversation(id: string): Conversation | null {
+        const stmt = this.db.prepare('SELECT * FROM conversations WHERE id = ?');
+        const row = stmt.get(id) as any;
+
+        if (!row) return null;
+
+        return {
+            id: row.id,
+            user_id_1: row.user_id_1,
+            user_id_2: row.user_id_2,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        };
+    }
+
+    getConversationByUsers(userId1: string, userId2: string): Conversation | null {
+        const stmt = this.db.prepare(
+            'SELECT * FROM conversations WHERE (user_id_1 = ? AND user_id_2 = ?) OR (user_id_1 = ? AND user_id_2 = ?)'
+        );
+        const row = stmt.get(userId1, userId2, userId2, userId1) as any;
+
+        if (!row) return null;
+
+        return {
+            id: row.id,
+            user_id_1: row.user_id_1,
+            user_id_2: row.user_id_2,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        };
+    }
+
+    getConversationsByUser(userId: string): Conversation[] {
+        const stmt = this.db.prepare(
+            'SELECT * FROM conversations WHERE user_id_1 = ? OR user_id_2 = ? ORDER BY updated_at DESC'
+        );
+        const rows = stmt.all(userId, userId) as any[];
+
+        return rows.map((row) => ({
+            id: row.id,
+            user_id_1: row.user_id_1,
+            user_id_2: row.user_id_2,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }));
+    }
+
+    deleteConversation(id: string): void {
+        const stmt = this.db.prepare('DELETE FROM conversations WHERE id = ?');
+        stmt.run(id);
+    }
+
+    // ============ MESSAGES ============
+
+    createMessage(message: Omit<Message, 'id' | 'read' | 'created_at'> & { id: string }): Message {
+        const now = new Date().toISOString();
+        const stmt = this.db.prepare(`
+      INSERT INTO messages (id, conversation_id, sender_id, content, message_type, read, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+        stmt.run(
+            message.id,
+            message.conversation_id,
+            message.sender_id,
+            message.content,
+            message.message_type,
+            0,
+            now
+        );
+
+        return {
+            id: message.id,
+            conversation_id: message.conversation_id,
+            sender_id: message.sender_id,
+            content: message.content,
+            message_type: message.message_type,
+            read: false,
+            created_at: now,
+        };
+    }
+
+    getMessage(id: string): Message | null {
+        const stmt = this.db.prepare('SELECT * FROM messages WHERE id = ?');
+        const row = stmt.get(id) as any;
+
+        if (!row) return null;
+
+        return {
+            id: row.id,
+            conversation_id: row.conversation_id,
+            sender_id: row.sender_id,
+            content: row.content,
+            message_type: row.message_type,
+            read: Boolean(row.read),
+            created_at: row.created_at,
+        };
+    }
+
+    getMessagesByConversation(conversationId: string): Message[] {
+        const stmt = this.db.prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC');
+        const rows = stmt.all(conversationId) as any[];
+
+        return rows.map((row) => ({
+            id: row.id,
+            conversation_id: row.conversation_id,
+            sender_id: row.sender_id,
+            content: row.content,
+            message_type: row.message_type,
+            read: Boolean(row.read),
+            created_at: row.created_at,
+        }));
+    }
+
+    markMessageAsRead(id: string): void {
+        const stmt = this.db.prepare('UPDATE messages SET read = 1 WHERE id = ?');
+        stmt.run(id);
+    }
+
+    markConversationMessagesAsRead(conversationId: string): void {
+        const stmt = this.db.prepare('UPDATE messages SET read = 1 WHERE conversation_id = ?');
+        stmt.run(conversationId);
+    }
+
+    deleteMessage(id: string): void {
+        const stmt = this.db.prepare('DELETE FROM messages WHERE id = ?');
         stmt.run(id);
     }
 

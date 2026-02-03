@@ -2,7 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import { db } from './src/lib/sqlite-db';
-import type { Garment, Outfit, User } from './src/types';
+import type { Garment, Outfit, User, Contact, Conversation, Message } from './src/types';
+import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
 const PORT = 3001;
@@ -220,6 +221,334 @@ app.get('/api/stats/:userId', (req, res) => {
     try {
         const stats = db.getStats(req.params.userId);
         res.json(stats);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ CONTACTS ============
+
+// Buscar usuario por username
+app.get('/api/contacts/search/:username', (req, res) => {
+    try {
+        const allUsers = db.getAllUsers();
+        const searchResult = allUsers.find(u => u.username?.toLowerCase() === req.params.username.toLowerCase());
+
+        if (!searchResult) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        // No devolver password_hash
+        const { password_hash: _, ...userPublic } = searchResult;
+        res.json(userPublic);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Enviar solicitud de amistad
+app.post('/api/contacts/request', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        if (user_id === contact_id) {
+            return res.status(400).json({ error: 'No puedes agregarte a ti mismo' });
+        }
+
+        // Verificar que ambos usuarios existan
+        const userExists = db.getUser(user_id);
+        const contactExists = db.getUser(contact_id);
+
+        if (!userExists || !contactExists) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        // Verificar si ya existe una solicitud
+        const existing = db.getContact(user_id, contact_id);
+        if (existing) {
+            return res.status(400).json({ error: 'Ya existe una solicitud con este usuario' });
+        }
+
+        const contact = db.createContact({
+            id: uuidv4(),
+            user_id,
+            contact_id,
+            status: 'pendiente',
+        });
+
+        res.json(contact);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener solicitudes pendientes de un usuario (recibidas)
+app.get('/api/contacts/pending/:userId', (req, res) => {
+    try {
+        const contacts = db.getPendingRequestsForUser(req.params.userId);
+
+        // Enriquecer con datos del usuario que envió la solicitud
+        const enriched = contacts.map((contact) => {
+            const fromUser = db.getUser(contact.user_id);
+            return {
+                ...contact,
+                contact_user: fromUser
+                    ? { id: fromUser.id, username: fromUser.username, profile_pic: fromUser.profile_pic }
+                    : null,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener contactos aceptados de un usuario
+app.get('/api/contacts/accepted/:userId', (req, res) => {
+    try {
+        const contacts = db.getContactsByUser(req.params.userId, 'aceptado');
+
+        // Enriquecer con datos del contacto
+        const enriched = contacts.map((contact) => {
+            const contactUser = db.getUser(contact.contact_id);
+            return {
+                ...contact,
+                contact_user: contactUser ? { id: contactUser.id, username: contactUser.username, profile_pic: contactUser.profile_pic } : null,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Aceptar solicitud de amistad
+app.post('/api/contacts/accept', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        // Verificar que existe la solicitud
+        const contact = db.getContact(contact_id, user_id);
+        if (!contact || contact.status !== 'pendiente') {
+            return res.status(404).json({ error: 'Solicitud no encontrada o no pendiente' });
+        }
+
+        // Actualizar estado
+        db.updateContactStatus(contact_id, user_id, 'aceptado');
+
+        // Crear contacto inverso
+        const existingInverse = db.getContact(user_id, contact_id);
+        if (!existingInverse) {
+            db.createContact({
+                id: uuidv4(),
+                user_id,
+                contact_id,
+                status: 'aceptado',
+            });
+        } else {
+            db.updateContactStatus(user_id, contact_id, 'aceptado');
+        }
+
+        // Crear conversación
+        const existingConversation = db.getConversationByUsers(user_id, contact_id);
+        if (!existingConversation) {
+            db.createConversation({
+                id: uuidv4(),
+                user_id_1: user_id,
+                user_id_2: contact_id,
+            });
+        }
+
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rechazar solicitud de amistad
+app.post('/api/contacts/reject', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        // Actualizar estado
+        db.updateContactStatus(contact_id, user_id, 'rechazado');
+
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Bloquear contacto
+app.post('/api/contacts/block', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        const contact = db.getContact(user_id, contact_id);
+        if (contact) {
+            db.updateContactStatus(user_id, contact_id, 'bloqueado');
+        } else {
+            db.createContact({
+                id: uuidv4(),
+                user_id,
+                contact_id,
+                status: 'bloqueado',
+            });
+        }
+
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Eliminar contacto
+app.delete('/api/contacts/:user_id/:contact_id', (req, res) => {
+    try {
+        db.deleteContact(req.params.user_id, req.params.contact_id);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ CONVERSATIONS ============
+
+// Obtener conversaciones de un usuario
+app.get('/api/conversations/:userId', (req, res) => {
+    try {
+        const conversations = db.getConversationsByUser(req.params.userId);
+
+        // Enriquecer con último mensaje y datos del otro usuario
+        const enriched = conversations.map((conv) => {
+            const otherUserId = conv.user_id_1 === req.params.userId ? conv.user_id_2 : conv.user_id_1;
+            const otherUser = db.getUser(otherUserId);
+            const messages = db.getMessagesByConversation(conv.id);
+            const unreadCount = messages.filter(m => !m.read && m.sender_id !== req.params.userId).length;
+
+            return {
+                ...conv,
+                other_user: otherUser ? { id: otherUser.id, username: otherUser.username, profile_pic: otherUser.profile_pic } : null,
+                last_message: messages[messages.length - 1] || null,
+                unread_count: unreadCount,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener mensajes de una conversación
+app.get('/api/conversations/:conversationId/messages', (req, res) => {
+    try {
+        const messages = db.getMessagesByConversation(req.params.conversationId);
+
+        // Enriquecer con datos del remitente
+        const enriched = messages.map((msg) => {
+            const sender = db.getUser(msg.sender_id);
+            return {
+                ...msg,
+                sender: sender ? { id: sender.id, username: sender.username, profile_pic: sender.profile_pic } : null,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ MESSAGES ============
+
+// Enviar mensaje
+app.post('/api/messages', (req, res) => {
+    try {
+        const { conversation_id, sender_id, content, message_type } = req.body;
+
+        if (!conversation_id || !sender_id || !content) {
+            return res.status(400).json({ error: 'conversation_id, sender_id y content requeridos' });
+        }
+
+        // Verificar que la conversación existe
+        const conversation = db.getConversation(conversation_id);
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+
+        // Verificar que sender es parte de la conversación
+        if (conversation.user_id_1 !== sender_id && conversation.user_id_2 !== sender_id) {
+            return res.status(403).json({ error: 'No tienes permiso para enviar mensajes en esta conversación' });
+        }
+
+        // Verificar que son contactos aceptados
+        const otherUserId = conversation.user_id_1 === sender_id ? conversation.user_id_2 : conversation.user_id_1;
+        const contactStatus = db.getContact(sender_id, otherUserId);
+        if (!contactStatus || contactStatus.status !== 'aceptado') {
+            return res.status(403).json({ error: 'No puedes enviar mensajes a este usuario' });
+        }
+
+        const message = db.createMessage({
+            id: uuidv4(),
+            conversation_id,
+            sender_id,
+            content,
+            message_type: message_type || 'text',
+        });
+
+        // Actualizar timestamp de la conversación
+        // (SQLite no expone update directo, pero se puede hacer con exec)
+
+        res.json(message);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Marcar mensaje como leído
+app.put('/api/messages/:messageId/read', (req, res) => {
+    try {
+        db.markMessageAsRead(req.params.messageId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Marcar conversación como leída
+app.put('/api/conversations/:conversationId/read', (req, res) => {
+    try {
+        db.markConversationMessagesAsRead(req.params.conversationId);
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Eliminar mensaje
+app.delete('/api/messages/:messageId', (req, res) => {
+    try {
+        db.deleteMessage(req.params.messageId);
+        res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

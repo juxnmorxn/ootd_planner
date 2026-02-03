@@ -42,14 +42,20 @@ export async function compressImage(
 }
 
 /**
- * Remueve el fondo de una imagen usando IA
+ * Remueve el fondo de una imagen usando IA (@imgly)
+ * Optimizado para velocidad
  */
 export async function removeBackgroundFromImage(imageData: string): Promise<string> {
     try {
-        console.log('[AI] Starting background removal...');
+        console.log('[AI] Starting background removal with @imgly...');
         const startTime = performance.now();
 
-        const blob = await removeBackground(imageData, {
+        // Comprimir imagen primero para acelerar procesamiento
+        const compressed = await compressImage(imageData, 0.85, 768);
+
+        const blob = await removeBackground(compressed, {
+            model: 'small',  // Modelo pequeño = más rápido (10-15s vs 30s)
+            batch: true,     // Procesar en batch si hay GPU
             progress: (key, current, total) => {
                 const percentage = Math.round((current / total) * 100);
                 console.log(`[AI] ${key}: ${percentage}%`);
@@ -57,7 +63,7 @@ export async function removeBackgroundFromImage(imageData: string): Promise<stri
         });
 
         const endTime = performance.now();
-        console.log(`Background Removal: ${endTime - startTime} ms`);
+        console.log(`[AI] Background removal took: ${endTime - startTime}ms`);
 
         // Convertir blob a data URL
         return new Promise((resolve, reject) => {

@@ -84,3 +84,42 @@ export interface AuthSession {
     username: string;
     expiresAt?: string; // For future token-based auth
 }
+
+// ============ CHAT & MESSAGING ============
+
+export interface Contact {
+    id: string;
+    user_id: string;
+    contact_id: string;
+    status: 'pendiente' | 'aceptado' | 'rechazado' | 'bloqueado';
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Conversation {
+    id: string;
+    user_id_1: string;
+    user_id_2: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Message {
+    id: string;
+    conversation_id: string;
+    sender_id: string;
+    content: string;
+    message_type: 'text' | 'image' | 'file';
+    read: boolean;
+    created_at: string;
+}
+
+export interface MessageWithSender extends Message {
+    sender?: Pick<User, 'id' | 'username' | 'profile_pic'>;
+}
+
+export interface ConversationWithData extends Conversation {
+    other_user?: Pick<User, 'id' | 'username' | 'profile_pic'>;
+    last_message?: Message;
+    unread_count?: number;
+}

@@ -1,0 +1,28 @@
+.contacts-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.contacts-page h1 {
+    margin-top: 0;
+    margin-bottom: 2rem;
+    color: #333;
+    font-size: 2rem;
+}
+
+.contacts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.contacts-section {
+    min-height: 400px;
+}
+
+@media (max-width: 768px) {
+    .contacts-grid {
+        grid-template-columns: 1fr;
+    }
+}

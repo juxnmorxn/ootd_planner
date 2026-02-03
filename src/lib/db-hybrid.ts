@@ -31,10 +31,31 @@ export class HybridDatabase {
 
   // ============ GARMENTS ============
 
-  async getGarmentsByUser(userId: string, category?: string): Promise<Garment[]> {
-    try {
-      if (this.isOnline) {
-        // Intenta traer de Turso
+  async getGarmentsByUser(
+    userId: string,
+    category?: string,
+    forceRefresh: boolean = false
+  ): Promise<Garment[]> {
+    // ✅ CACHE-FIRST: Retorna caché primero si existe
+    if (!forceRefresh) {
+      const cached = await offlineDB.getGarmentsOffline(userId);
+      if (cached.length > 0) {
+        console.log('[HybridDB] Retornando caché (no descargando)');
+        
+        // Sincroniza en background (sin bloquear)
+        if (this.isOnline) {
+          this.syncGarmentsInBackground(userId, category).catch(() => {
+            // Sync falló silenciosamente, caché sigue siendo válido
+          });
+        }
+        
+        return cached;
+      }
+    }
+
+    // Sin caché o fuerza refresh → descarga del servidor
+    if (this.isOnline) {
+      try {
         const garments = category
           ? await apiDb.getGarmentsByCategory(userId, category)
           : await apiDb.getGarmentsByUser(userId);
@@ -45,13 +66,48 @@ export class HybridDatabase {
         }
 
         return garments;
+      } catch (error) {
+        console.warn('[HybridDB] Failed to fetch from API, using offline:', error);
       }
-    } catch (error) {
-      console.warn('[HybridDB] Failed to fetch from Turso, using offline:', error);
     }
 
-    // Si no hay internet O Turso falló, usa offline
+    // Si no hay caché y falla, retorna vacío
     return await offlineDB.getGarmentsOffline(userId);
+  }
+
+  // Sincronización en background sin bloquear UI
+  private async syncGarmentsInBackground(
+    userId: string,
+    category?: string
+  ): Promise<void> {
+    try {
+      const fresh = category
+        ? await apiDb.getGarmentsByCategory(userId, category)
+        : await apiDb.getGarmentsByUser(userId);
+      
+      const cached = await offlineDB.getGarmentsOffline(userId);
+      
+      // Comparar si cambió algo
+      const changed = JSON.stringify(fresh) !== JSON.stringify(cached);
+      
+      if (changed) {
+        console.log('[HybridDB] Cambios detectados, actualizando caché en background');
+        for (const g of fresh) {
+          await offlineDB.saveGarmentOffline(g);
+        }
+        
+        // Notificar al usuario que hay nuevos datos
+        window.dispatchEvent(
+          new CustomEvent('data-updated', {
+            detail: { type: 'garments', data: fresh }
+          })
+        );
+      } else {
+        console.log('[HybridDB] Caché actual está sincronizado');
+      }
+    } catch (error) {
+      console.warn('[HybridDB] Background sync falló (caché sigue siendo válido):', error);
+    }
   }
 
   async createGarment(garment: Omit<Garment, 'created_at'> & { id: string }): Promise<Garment> {
@@ -105,9 +161,25 @@ export class HybridDatabase {
 
   // ============ OUTFITS ============
 
-  async getOutfitsByUser(userId: string): Promise<Outfit[]> {
-    try {
-      if (this.isOnline) {
+  async getOutfitsByUser(userId: string, forceRefresh: boolean = false): Promise<Outfit[]> {
+    // ✅ CACHE-FIRST: Retorna caché primero si existe
+    if (!forceRefresh) {
+      const cached = await offlineDB.getOutfitsOffline(userId);
+      if (cached.length > 0) {
+        console.log('[HybridDB] Retornando caché de outfits (no descargando)');
+        
+        // Sincroniza en background
+        if (this.isOnline) {
+          this.syncOutfitsInBackground(userId).catch(() => {});
+        }
+        
+        return cached;
+      }
+    }
+
+    // Sin caché o fuerza refresh → descarga
+    if (this.isOnline) {
+      try {
         const outfits = await apiDb.getOutfitsByUser(userId);
 
         // Guarda en IndexedDB como caché
@@ -116,12 +188,37 @@ export class HybridDatabase {
         }
 
         return outfits;
+      } catch (error) {
+        console.warn('[HybridDB] Failed to fetch outfits, using offline:', error);
       }
-    } catch (error) {
-      console.warn('[HybridDB] Failed to fetch outfits from Turso, using offline:', error);
     }
 
     return await offlineDB.getOutfitsOffline(userId);
+  }
+
+  // Sincronización de outfits en background
+  private async syncOutfitsInBackground(userId: string): Promise<void> {
+    try {
+      const fresh = await apiDb.getOutfitsByUser(userId);
+      const cached = await offlineDB.getOutfitsOffline(userId);
+      
+      const changed = JSON.stringify(fresh) !== JSON.stringify(cached);
+      
+      if (changed) {
+        console.log('[HybridDB] Cambios en outfits, actualizando caché');
+        for (const o of fresh) {
+          await offlineDB.saveOutfitOffline(o);
+        }
+        
+        window.dispatchEvent(
+          new CustomEvent('data-updated', {
+            detail: { type: 'outfits', data: fresh }
+          })
+        );
+      }
+    } catch (error) {
+      console.warn('[HybridDB] Background sync outfits falló:', error);
+    }
   }
 
   async createOutfit(outfit: Outfit): Promise<Outfit> {

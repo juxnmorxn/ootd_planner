@@ -8,6 +8,8 @@ import { OutfitEditor } from './pages/OutfitEditor';
 import { Closet } from './pages/Closet';
 import { Profile } from './pages/Profile';
 import { BottomNav } from './components/layout/BottomNav';
+import { Chats } from './pages/Chats';
+import { Contacts } from './pages/Contacts';
 
 import { AdminUsers } from './pages/AdminUsers';
 
@@ -27,7 +29,16 @@ function App() {
     : true;
 
   // Validar que view sea uno de los valores esperados; si no, resetear a 'auth'
-  const validViews = ['auth', 'calendar', 'outfit-editor', 'closet', 'profile', 'admin-users'];
+  const validViews = [
+    'auth',
+    'calendar',
+    'outfit-editor',
+    'closet',
+    'profile',
+    'admin-users',
+    'contacts',
+    'chats',
+  ];
   const safeView = validViews.includes(view) ? view : 'auth';
 
   useEffect(() => {
@@ -224,6 +235,20 @@ function App() {
 
         {safeView === 'admin-users' && (
           <AdminUsers onBack={() => setView('profile')} />
+        )}
+
+        {safeView === 'contacts' && (
+          <Contacts
+            userId={currentUser.id}
+            username={currentUser.username || currentUser.email}
+          />
+        )}
+
+        {safeView === 'chats' && (
+          <Chats
+            userId={currentUser.id}
+            username={currentUser.username || currentUser.email}
+          />
         )}
       </div>
       {showBottomNav && (
