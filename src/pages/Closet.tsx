@@ -67,7 +67,7 @@ export function Closet() {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-50 pb-32">
+        <div className="min-h-screen bg-slate-50 overflow-y-auto pb-20">
             {/* Header with Tabs */}
             <div className="sticky top-0 z-10 bg-white border-b border-slate-100">
                 <div className="max-w-4xl mx-auto px-4 py-4">

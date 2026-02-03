@@ -375,7 +375,7 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
     });
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col">
+        <div className="min-h-screen bg-slate-50 flex flex-col overflow-hidden pb-20">
             {/* Top Bar */}
             <div className="sticky top-0 z-20 bg-white border-b border-slate-100 fade-in-down">
                 <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -415,8 +415,8 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                 </div>
             </div>
 
-            {/* Canvas Area - Fixed Slots with Swipe */}
-            <div className="flex-1 relative overflow-hidden bg-white">
+            {/* Canvas Area - Fixed Slots with Swipe - Con overflow-y-auto para scroll */}
+            <div className="flex-1 relative overflow-y-auto bg-white">
                 <div
                     ref={canvasRef}
                     className="absolute inset-0 p-8 overflow-auto touch-none"

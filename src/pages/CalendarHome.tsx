@@ -29,7 +29,7 @@ export function CalendarHome({ onEditOutfit }: CalendarHomeProps) {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-slate-50">
+        <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
             {/* Top Section: Date Strip (15%) */}
             <div className="flex-shrink-0">
                 <HorizontalDateStrip
@@ -41,11 +41,13 @@ export function CalendarHome({ onEditOutfit }: CalendarHomeProps) {
                 />
             </div>
 
-            {/* Main Section: The Stage (75%) */}
-            <DailyOutfitStage
-                selectedDate={selectedDate}
-                onEditOutfit={handleEditOutfit}
-            />
+            {/* Main Section: The Stage (75%) - Con scroll y padding para barra inferior */}
+            <div className="flex-1 overflow-y-auto pb-20">
+                <DailyOutfitStage
+                    selectedDate={selectedDate}
+                    onEditOutfit={handleEditOutfit}
+                />
+            </div>
 
             {/* Bottom Navigation is rendered by App.tsx */}
         </div>

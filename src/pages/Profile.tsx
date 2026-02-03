@@ -134,9 +134,9 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 pb-20">
+        <div className="min-h-screen bg-slate-50 overflow-y-auto pb-20">
             {/* Header */}
-            <div className="bg-white border-b border-slate-100">
+            <div className="bg-white border-b border-slate-100 sticky top-0 z-10">
                 <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
                     <button
                         onClick={onBack}
