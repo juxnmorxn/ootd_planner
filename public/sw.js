@@ -78,6 +78,19 @@ self.addEventListener('fetch', (event) => {
 
   // Para API calls, network-first con fallback a caché
   if (request.url.includes('/api/')) {
+    // Cache Storage solo soporta GET. Para POST/PUT/DELETE no se cachea.
+    if (request.method !== 'GET') {
+      event.respondWith(
+        fetch(request).catch(() =>
+          new Response(
+            JSON.stringify({ error: 'offline', message: 'Sin conexión' }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } },
+          ),
+        ),
+      );
+      return;
+    }
+
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -92,7 +105,15 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           // Si falla, intenta caché
-          return caches.match(request);
+          return caches.match(request).then((cached) => {
+            return (
+              cached ||
+              new Response(
+                JSON.stringify({ error: 'offline', message: 'Sin conexión' }),
+                { status: 503, headers: { 'Content-Type': 'application/json' } },
+              )
+            );
+          });
         }),
     );
     return;

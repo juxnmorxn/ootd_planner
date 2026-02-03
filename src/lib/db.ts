@@ -16,18 +16,16 @@ class DatabaseService {
         if (this.initialized) return;
 
         try {
-            // Verificar que el servidor API esté corriendo
-            const response = await fetch('http://localhost:3001/api/users');
-            if (!response.ok) {
-                throw new Error('API server not responding');
-            }
-
+            // Verificar conectividad al API sin hardcodear localhost.
+            // En producción usa /api (misma origin); en local usa http://localhost:3001/api.
+            await apiDb.getAllUsers();
             this.initialized = true;
             console.log('[Database] Connected to API server');
         } catch (error) {
             console.error('[Database] Failed to connect to API server:', error);
-            console.error('[Database] Make sure to run: npm run server');
-            throw new Error('API server not available. Run "npm run server" first.');
+            // No romper la app en producción/offline: permitir que la UI cargue.
+            // Las llamadas al API fallarán individualmente y se manejarán en cada flujo.
+            this.initialized = true;
         }
     }
 
