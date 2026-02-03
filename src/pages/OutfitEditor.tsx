@@ -477,7 +477,7 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                                     e.stopPropagation();
                                                     removeLayer(layer.garment_id);
                                                 }}
-                                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs font-bold"
+                                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-100 hover:opacity-80 transition-opacity flex items-center justify-center text-xs font-bold"
                                             >
                                                 ×
                                             </button>

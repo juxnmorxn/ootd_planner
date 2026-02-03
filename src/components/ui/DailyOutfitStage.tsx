@@ -54,8 +54,8 @@ export function DailyOutfitStage({ selectedDate, onEditOutfit }: DailyOutfitStag
             totalOptions={options.length}
             allGarments={allGarments}
             onEdit={() => onEditOutfit(currentOutfit.id)}
-            onPreviousOption={() => setCurrentIndex((idx) => (idx > 0 ? idx - 1 : idx))}
-            onNextOption={() => setCurrentIndex((idx) => (idx < options.length - 1 ? idx + 1 : idx))}
+            onSelectOption={(index) => setCurrentIndex(index)}
+            currentIndex={currentIndex}
         />
     );
 }
@@ -86,16 +86,16 @@ function OutfitDisplay({
     totalOptions,
     allGarments,
     onEdit,
-    onPreviousOption,
-    onNextOption,
+    onSelectOption,
+    currentIndex,
 }: {
     outfit: Outfit;
     optionIndex: number;
     totalOptions: number;
     allGarments: any[];
     onEdit: () => void;
-    onPreviousOption: () => void;
-    onNextOption: () => void;
+    onSelectOption: (index: number) => void;
+    currentIndex: number;
 }) {
     const { updateOutfit } = useOutfits();
     const [layers, setLayers] = useState<OutfitLayer[]>(() => JSON.parse(outfit.layers_json));
@@ -217,34 +217,26 @@ function OutfitDisplay({
                 {layers.length} {layers.length === 1 ? 'prenda' : 'prendas'}
             </div>
 
-            {/* Option indicator - Bottom Right */}
+            {/* Option Tabs - Top Center Below Edit Button */}
             {totalOptions > 1 && (
-                <div className="absolute bottom-3 right-3 z-20 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onPreviousOption();
-                        }}
-                        className="text-white/70 hover:text-white disabled:opacity-30 disabled:hover:text-white/70"
-                        disabled={optionIndex <= 1}
-                    >
-                        ←
-                    </button>
-                    <span>
-                        Opción {optionIndex} de {totalOptions}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onNextOption();
-                        }}
-                        className="text-white/70 hover:text-white disabled:opacity-30 disabled:hover:text-white/70"
-                        disabled={optionIndex >= totalOptions}
-                    >
-                        →
-                    </button>
+                <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20 flex gap-2">
+                    {Array.from({ length: totalOptions }).map((_, index) => (
+                        <button
+                            key={index}
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectOption(index);
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all backdrop-blur-sm ${
+                                index === currentIndex
+                                    ? 'bg-black text-white shadow-lg'
+                                    : 'bg-black/50 text-white/70 hover:bg-black/60 hover:text-white'
+                            }`}
+                        >
+                            {index + 1}
+                        </button>
+                    ))}
                 </div>
             )}
 
