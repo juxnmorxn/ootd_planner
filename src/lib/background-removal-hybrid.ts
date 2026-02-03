@@ -1,6 +1,6 @@
 /**
- * Eliminación de Fondo usando REMBG Backend (servidor)
- * Rápido (~1-2s) y funciona en PWA
+ * Eliminación de Fondo usando REMBG Backend (servidor Python)
+ * Rápido (~1-2s) y muy eficiente
  * 
  * @param imageData - Base64 data URL de la imagen
  * @param onProgress - Callback para mostrar progreso
@@ -12,7 +12,7 @@ export async function removeBackgroundHybrid(
 ): Promise<string> {
     try {
         onProgress?.('✨ Removiendo fondo...');
-        return await removeBackgroundViaServer(imageData, onProgress);
+        return await removeBackgroundViaRembg(imageData, onProgress);
     } catch (error) {
         console.error('[Background Removal] Error:', error);
         throw error;
@@ -20,15 +20,16 @@ export async function removeBackgroundHybrid(
 }
 
 /**
- * Elimina fondo usando REMBG Backend (servidor)
- * Rápido y sin usar recursos del dispositivo
+ * Elimina fondo usando REMBG Backend (servidor Python)
+ * Mucho más rápido que @imgly: ~1-2 segundos
+ * Requiere: Python + rembg instalado en servidor
  */
-async function removeBackgroundViaServer(
+async function removeBackgroundViaRembg(
     imageData: string,
     onProgress?: (message: string) => void
 ): Promise<string> {
     try {
-        onProgress?.('⏳ Un momento...');
+        onProgress?.('⏳ Procesando con servidor...');
         
         const response = await fetch('/api/remove-background', {
             method: 'POST',
@@ -42,14 +43,14 @@ async function removeBackgroundViaServer(
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Error en servidor');
+            throw new Error(error.error || 'Error en servidor REMBG');
         }
 
         const data = await response.json();
         onProgress?.('✅ ¡Fondo removido!');
         return data.imageData;
     } catch (error) {
-        console.error('[Backend] Background removal error:', error);
-        throw error;
+        console.error('[REMBG] Background removal error:', error);
+        throw new Error(`No se pudo remover el fondo: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
 }

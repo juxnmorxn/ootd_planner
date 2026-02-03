@@ -129,7 +129,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                             />
 
                             <div className="space-y-4">
-                                {/* AI Toggle */}
+                                {/* AI Toggle - REMBG (Muy rápido) */}
                                 <div
                                     onClick={() => setUseAI(!useAI)}
                                     className={`
@@ -144,7 +144,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                                         <div>
                                             <p className="font-semibold text-slate-900">Eliminar fondo con IA</p>
                                             <p className="text-xs text-slate-500">
-                                                {useAI ? 'Activado (puede tardar unos segundos)' : 'Desactivado (más rápido)'}
+                                                {useAI ? '⚡ Activado (~1-2s)' : 'Desactivado'}
                                             </p>
                                         </div>
                                     </div>
@@ -163,7 +163,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                                         <>
                                             <Loader className="w-12 h-12 text-black animate-spin" />
                                             <p className="text-sm text-slate-600 font-medium">{loadingText}</p>
-                                            <p className="text-xs text-slate-400">Esto corre 100% en tu dispositivo</p>
+                                            {useAI && <p className="text-xs text-slate-400">Usando REMBG (servidor Python)</p>}
                                         </>
                                     ) : (
                                         <>

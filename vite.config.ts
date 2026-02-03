@@ -5,6 +5,6 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    exclude: ['@imgly/background-removal', 'sql.js'],
+    exclude: ['sql.js'], // Ya no necesitamos excluir @imgly
   },
 })
