@@ -4,6 +4,21 @@ import './index.css';
 import App from './App.tsx';
 import { ToastProvider } from './components/ui/Toast';
 
+// Shim básico para librerías que esperan "process" en entorno browser
+declare global {
+  interface Window {
+    process?: any;
+  }
+}
+
+if (typeof window !== 'undefined' && !window.process) {
+  window.process = {
+    env: {},
+    version: '0.0.0',
+    versions: { node: '0.0.0' },
+  };
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ToastProvider>
