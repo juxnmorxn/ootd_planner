@@ -5,6 +5,9 @@ const cloudinary = require('cloudinary').v2;
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const os = require('os');
 require('dotenv').config();
 
 const app = express();
@@ -460,6 +463,82 @@ app.put('/api/users/:id', (req, res) => {
     } catch (error) {
         console.error('[API] Update user error:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ BACKGROUND REMOVAL (REMBG BACKEND) ============
+
+/**
+ * Usa REMBG (Python) para eliminar fondos de imágenes de forma rápida en servidor
+ */
+app.post('/api/remove-background', async (req, res) => {
+    try {
+        const { imageData } = req.body;
+        
+        if (!imageData) {
+            return res.status(400).json({ error: 'imageData required' });
+        }
+
+        // Decodificar base64 a buffer
+        const base64Data = imageData.replace(/^data:image\/[^;]+;base64,/, '');
+        const inputBuffer = Buffer.from(base64Data, 'base64');
+
+        // Crear archivos temporales
+        const tmpDir = os.tmpdir();
+        const inputPath = path.join(tmpDir, `input_${Date.now()}.png`);
+        const outputPath = path.join(tmpDir, `output_${Date.now()}.png`);
+
+        // Guardar imagen de entrada
+        fs.writeFileSync(inputPath, inputBuffer);
+
+        try {
+            // Ejecutar rembg como proceso Python
+            await new Promise((resolve, reject) => {
+                const process = spawn('python', ['-m', 'rembg', 'i', inputPath, outputPath], {
+                    timeout: 30000, // 30 segundos máximo
+                });
+
+                let errorOutput = '';
+                
+                process.stderr.on('data', (data) => {
+                    errorOutput += data.toString();
+                    console.error('[REMBG] Error:', data.toString());
+                });
+
+                process.on('close', (code) => {
+                    if (code !== 0) {
+                        reject(new Error(`REMBG process exited with code ${code}: ${errorOutput}`));
+                    } else {
+                        resolve();
+                    }
+                });
+
+                process.on('error', (err) => {
+                    reject(err);
+                });
+            });
+
+            // Leer imagen procesada
+            const outputBuffer = fs.readFileSync(outputPath);
+            const resultBase64 = outputBuffer.toString('base64');
+
+            // Limpiar archivos temporales
+            fs.unlinkSync(inputPath);
+            fs.unlinkSync(outputPath);
+
+            res.json({
+                imageData: `data:image/png;base64,${resultBase64}`,
+            });
+        } catch (error) {
+            // Limpiar archivos en caso de error
+            try { fs.unlinkSync(inputPath); } catch (e) {}
+            try { fs.unlinkSync(outputPath); } catch (e) {}
+            
+            throw error;
+        }
+    } catch (error) {
+        console.error('[API] Background removal error:', error);
+        res.status(500).json({ error: error.message || 'Failed to remove background' });
     }
 });
 

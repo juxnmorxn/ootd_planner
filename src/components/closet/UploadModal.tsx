@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../lib/store';
 import { useGarments } from '../../hooks/useGarments';
 import { compressImage, removeBackgroundFromImage } from '../../lib/img-process';
+import { removeBackgroundHybrid } from '../../lib/background-removal-hybrid';
 import { getCategoryInfo } from '../../lib/utils';
 import type { GarmentCategory } from '../../types';
 import { useToast } from '../ui/Toast';
@@ -47,9 +48,10 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                 setLoadingText('Optimizando imagen...');
                 const smaller = await compressImage(dataUrl, 0.8);
 
-                // 2) Ejecutar IA de eliminación de fondo sobre la versión reducida
-                setLoadingText('Eliminando fondo con IA...');
-                const processed = await removeBackgroundFromImage(smaller);
+                // 2) Usar estrategia HYBRID: REMBG Backend si hay internet, fallback a @imgly local
+                const processed = await removeBackgroundHybrid(smaller, (msg) => {
+                    setLoadingText(msg);
+                });
                 setImageData(processed);
             } else {
                 const compressed = await compressImage(dataUrl);
