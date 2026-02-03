@@ -33,6 +33,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "lokijs": "^1.5.12",
     "lucide-react": "^0.563.0",
     "multer": "^2.0.2",
     "postcss": "^8.5.6",

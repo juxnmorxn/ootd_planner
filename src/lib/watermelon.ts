@@ -5,7 +5,7 @@
 
 import { Database } from '@nozbe/watermelondb';
 import { synchronize } from '@nozbe/watermelondb/sync';
-import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
+import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import { schema } from './db-schema';
 import { UserModel, GarmentModel, OutfitModel } from './db-models';
 
@@ -18,10 +18,13 @@ async function initDatabase() {
   if (watermelonDb) return watermelonDb;
 
   try {
-    const adapter = new SQLiteAdapter({
+    // Importante: para web NO usar el adaptador sqlite (termina bundling better-sqlite3/"fs")
+    // LokiJSAdapter persiste en IndexedDB y es compatible con navegador.
+    const adapter = new LokiJSAdapter({
       schema,
       dbName: 'ootd_planner',
-      jsi: false,
+      useWebWorker: false,
+      useIncrementalIndexedDB: true,
     });
 
     watermelonDb = new Database({
@@ -47,8 +50,6 @@ export async function getWatermelonDb() {
   return watermelonDb!;
 }
 
-export { watermelonDb };
-
 /**
  * Sincronización con Turso (backend)
  * Se llama cuando hay conexión a internet
@@ -57,8 +58,10 @@ export async function syncDatabase(userId: string, apiUrl: string) {
   try {
     console.log('[WatermelonDB] Starting sync...');
 
+    const db = await getWatermelonDb();
+
     await synchronize({
-      database: watermelonDb,
+      database: db,
       pullChanges: async ({ lastPulledAt }) => {
         // Traer cambios del servidor desde lastPulledAt
         const response = await fetch(`${apiUrl}/sync/pull`, {
@@ -95,11 +98,11 @@ export async function syncDatabase(userId: string, apiUrl: string) {
 
         console.log('[WatermelonDB] Pushed changes successfully');
       },
-      });
-    } catch (error) {
-      console.error('[WatermelonDB] Sync failed:', error);
-    }
+    });
+  } catch (error) {
+    console.error('[WatermelonDB] Sync failed:', error);
   }
+}
 
 /**
  * Sincronización automática cada 30 segundos cuando hay internet
@@ -135,5 +138,3 @@ export function stopAutoSync() {
     console.log('[AutoSync] Stopped');
   }
 }
-
-export default watermelonDb;
