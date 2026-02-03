@@ -3,7 +3,7 @@ import { X, Camera, Upload, Loader, Sparkles } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useStore } from '../../lib/store';
 import { useGarments } from '../../hooks/useGarments';
-import { compressImage, removeBackgroundFromImage } from '../../lib/img-process';
+import { compressImage } from '../../lib/img-process';
 import { removeBackgroundHybrid } from '../../lib/background-removal-hybrid';
 import { getCategoryInfo } from '../../lib/utils';
 import type { GarmentCategory } from '../../types';
