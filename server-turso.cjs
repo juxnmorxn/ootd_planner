@@ -48,6 +48,7 @@ async function initDb() {
       image_url TEXT NOT NULL,
       cloudinary_id TEXT NOT NULL,
       created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
@@ -68,8 +69,39 @@ async function initDb() {
 
   // Migrar esquemas antiguos si es necesario (añadir option_index si falta)
   await migrateOutfitsTable();
+  await migrateGarmentsTable();
 
   console.log('[Turso] Schema ensured');
+}
+
+// Migración defensiva para la tabla garments en Turso (añadir updated_at si no existe)
+async function migrateGarmentsTable() {
+  try {
+    const { rows } = await turso.execute(`PRAGMA table_info(garments)`);
+    if (!rows || rows.length === 0) {
+      return; // tabla aún no existe
+    }
+
+    const names = new Set(rows.map((c) => c.name));
+
+    if (!names.has('updated_at')) {
+      await turso.execute('ALTER TABLE garments ADD COLUMN updated_at TEXT');
+    }
+
+    // Backfill: si hay registros viejos o NULL, usar created_at
+    await turso.execute(`
+      UPDATE garments
+      SET updated_at = COALESCE(updated_at, created_at, datetime('now'))
+      WHERE updated_at IS NULL OR updated_at = ''
+    `);
+
+    await turso.execute(`
+      CREATE INDEX IF NOT EXISTS idx_garments_user_updated_at
+      ON garments(user_id, updated_at);
+    `);
+  } catch (error) {
+    console.error('[Turso] Garments table migration error:', error);
+  }
 }
 
 // Migración defensiva para la tabla outfits en Turso (añadir option_index si no existe)
@@ -428,9 +460,9 @@ app.post('/api/garments', async (req, res) => {
     const now = new Date().toISOString();
 
     await turso.execute({
-      sql: `INSERT INTO garments (id, user_id, category, sub_category, image_url, cloudinary_id, created_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
-      args: [id, user_id, category, sub_category, imageUrl, cloudinaryId, now],
+      sql: `INSERT INTO garments (id, user_id, category, sub_category, image_url, cloudinary_id, created_at, updated_at)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
+      args: [id, user_id, category, sub_category, imageUrl, cloudinaryId, now, now],
     });
 
     res.json({ id, user_id, category, sub_category, image_data: imageUrl });
@@ -728,8 +760,8 @@ app.post('/api/sync/pull', async (req, res) => {
     const { rows: garmentRows } = await turso.execute({
       sql: `SELECT * FROM garments 
             WHERE user_id = ?1 
-            AND (created_at > ?2 OR updated_at > ?2)
-            ORDER BY updated_at DESC`,
+            AND (created_at > ?2 OR COALESCE(updated_at, created_at) > ?2)
+            ORDER BY COALESCE(updated_at, created_at) DESC`,
       args: [userId, lastPulledDate],
     });
 
@@ -751,7 +783,7 @@ app.post('/api/sync/pull', async (req, res) => {
 
     for (const g of garmentRows) {
       const createdAt = new Date(g.created_at).getTime();
-      const updatedAt = new Date(g.updated_at).getTime();
+      const updatedAt = new Date(g.updated_at || g.created_at).getTime();
 
       // Si created_at == updated_at, es una creación
       if (createdAt === updatedAt) {
@@ -770,7 +802,7 @@ app.post('/api/sync/pull', async (req, res) => {
 
     for (const o of outfitRows) {
       const createdAt = new Date(o.created_at).getTime();
-      const updatedAt = new Date(o.updated_at).getTime();
+      const updatedAt = new Date(o.updated_at || o.created_at).getTime();
 
       if (createdAt === updatedAt) {
         outfitChanges.created.push(o);
@@ -821,9 +853,9 @@ app.post('/api/sync/push', async (req, res) => {
         const { id, category, sub_category, image_url, cloudinary_id } = g;
         await turso.execute({
           sql: `INSERT OR REPLACE INTO garments 
-                (id, user_id, category, sub_category, image_url, cloudinary_id, created_at)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
-          args: [id, userId, category, sub_category, image_url || '', cloudinary_id || '', now],
+                (id, user_id, category, sub_category, image_url, cloudinary_id, created_at, updated_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
+          args: [id, userId, category, sub_category, image_url || '', cloudinary_id || '', now, now],
         });
       }
 
