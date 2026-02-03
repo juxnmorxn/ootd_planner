@@ -147,7 +147,7 @@ function App() {
   const navActive = (safeView === 'calendar' ? 'calendar' : safeView === 'closet' ? 'closet' : 'calendar') as 'calendar' | 'closet';
 
   return (
-    <div className="relative min-h-screen flex flex-col safe-area-inset-top safe-area-inset-bottom">
+    <div className="relative min-h-screen flex flex-col">
       <div className="flex-1 flex flex-col">
         {safeView === 'calendar' && (
           <CalendarHome

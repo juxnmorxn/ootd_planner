@@ -45,7 +45,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
 
             if (useAI) {
                 // 1) Comprimir/redimensionar para que el modelo procese menos píxeles
-                setLoadingText('📦 Optimizando imagen...');
+                setLoadingText('✨ Optimizando...');
                 const smaller = await compressImage(dataUrl, 0.8);
 
                 // 2) Usar estrategia HYBRID: REMBG Backend si hay internet, fallback a @imgly local
@@ -102,9 +102,9 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[calc(100vh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto flex flex-col safe-area-inset-top safe-area-inset-bottom">
                 {/* Header */}
-                <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+                <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 flex-shrink-0">
                     <h2 className="text-xl font-bold text-slate-900">
                         Agregar {categoryInfo.label}
                     </h2>
@@ -117,7 +117,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                 </div>
 
                 {/* Content */}
-                <div className="p-6">
+                <div className="p-6 flex-1 overflow-y-auto">
                     {!imageData ? (
                         <>
                             <input

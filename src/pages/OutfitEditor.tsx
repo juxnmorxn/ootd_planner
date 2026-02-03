@@ -492,8 +492,8 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
             </div>
 
             {/* Bottom Sheet */}
-            <div className="bg-white border-t border-slate-200 safe-area-inset-bottom fade-in-up">
-                <div className="max-w-4xl mx-auto px-4 py-4">
+            <div className="bg-white border-t border-slate-200 safe-area-inset-bottom flex flex-col max-h-[45vh] overflow-hidden">
+                <div className="max-w-4xl mx-auto px-4 py-4 flex-1 overflow-y-auto scrollbar-hide">
                     <div className="space-y-4">
                         {/* Nivel 1: Categorías */}
                         {!selectedCategory && (

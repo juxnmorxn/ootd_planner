@@ -67,7 +67,7 @@ export function Closet() {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-50 overflow-y-auto pb-20">
+        <div className="min-h-screen bg-slate-50 overflow-y-auto pb-20 safe-area-inset-bottom">
             {/* Header with Tabs */}
             <div className="sticky top-0 z-10 bg-white border-b border-slate-100">
                 <div className="max-w-4xl mx-auto px-4 py-4">
@@ -136,6 +136,7 @@ export function Closet() {
                 <button
                     onClick={() => setShowUploadModal(true)}
                     className="fixed bottom-24 right-6 w-14 h-14 bg-black text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all flex items-center justify-center z-40"
+                    style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
                 >
                     <Plus className="w-7 h-7" />
                 </button>

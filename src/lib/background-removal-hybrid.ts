@@ -11,7 +11,7 @@ export async function removeBackgroundHybrid(
     onProgress?: (message: string) => void
 ): Promise<string> {
     try {
-        onProgress?.('🌐 Enviando a servidor... (~1-2s)');
+        onProgress?.('✨ Removiendo fondo...');
         return await removeBackgroundViaServer(imageData, onProgress);
     } catch (error) {
         console.error('[Background Removal] Error:', error);
@@ -28,7 +28,7 @@ async function removeBackgroundViaServer(
     onProgress?: (message: string) => void
 ): Promise<string> {
     try {
-        onProgress?.('⏳ Procesando...');
+        onProgress?.('⏳ Un momento...');
         
         const response = await fetch('/api/remove-background', {
             method: 'POST',

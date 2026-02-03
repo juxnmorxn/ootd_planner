@@ -29,7 +29,7 @@ export function CalendarHome({ onEditOutfit }: CalendarHomeProps) {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
+        <div className="min-h-screen flex flex-col bg-slate-50 overflow-hidden">
             {/* Top Section: Date Strip (15%) */}
             <div className="flex-shrink-0">
                 <HorizontalDateStrip
