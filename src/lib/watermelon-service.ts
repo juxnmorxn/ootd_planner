@@ -59,7 +59,9 @@ class WatermelonDatabaseService {
           g.user_id = garment.user_id;
           g.category = garment.category;
           g.sub_category = garment.sub_category;
+          // Guardar base64 temporalmente (se subirá a Cloudinary en sync)
           g.image_url = garment.image_data || '';
+          // cloudinary_id es solo para referencia interna
           g.cloudinary_id = `outfit-planner/${garment.user_id}/garments/${garment.id}`;
         });
       });
@@ -74,6 +76,7 @@ class WatermelonDatabaseService {
       category: garment.category,
       sub_category: garment.sub_category,
       created_at: now,
+      pending_upload: garment.image_data?.startsWith('data:') || false, // Marcar si es base64
     };
   }
 

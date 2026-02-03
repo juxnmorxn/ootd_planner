@@ -41,7 +41,11 @@ class DatabaseService {
     }
 
     async login(data: LoginCredentials): Promise<User> {
-        return apiDb.login(data);
+        const user = await apiDb.login(data);
+        // Agregar timestamp de login y sync
+        user.loginTimestamp = Date.now();
+        user.lastSyncTimestamp = 0;
+        return user;
     }
 
     async getAllUsers(): Promise<User[]> {

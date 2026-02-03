@@ -9,6 +9,8 @@ export interface User {
     custom_subcategories?: string; // JSON string de CustomSubcategories
     created_at?: string;
     updated_at?: string;
+    loginTimestamp?: number; // Timestamp en ms cuando se inició sesión (para logout 2 meses)
+    lastSyncTimestamp?: number; // Timestamp en ms del último sync exitoso (para garantizar sync diario)
 }
 
 // Custom subcategories per category
@@ -26,10 +28,11 @@ export type GarmentCategory = 'head' | 'top' | 'bottom' | 'feet' | 'acc' | 'bag'
 export interface Garment {
     id: string; // UUID
     user_id: string; // UUID - CHANGED from number
-    image_data: string; // Base64 string
+    image_data: string; // Base64 string (temporal offline) o URL Cloudinary
     category: GarmentCategory;
     sub_category: string; // e.g., 'Playera', 'Jeans', 'Gorra'
     created_at: string;
+    pending_upload?: boolean; // True si imagen offline no está aún en Cloudinary
 }
 
 export interface Outfit {

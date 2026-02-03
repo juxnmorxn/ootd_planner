@@ -39,6 +39,8 @@ export function Auth({ onSuccess }: AuthProps) {
             role: 'user',
             created_at: now,
             updated_at: now,
+            loginTimestamp: Date.now(), // Guardar timestamp de login
+            lastSyncTimestamp: 0, // Nunca sincronizado
         };
 
         setCurrentUser(offlineUser);

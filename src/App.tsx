@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { db } from './lib/db';
 import { watermelonService } from './lib/watermelon-service';
+import { syncDatabase } from './lib/watermelon';
 import { useStore } from './lib/store';
 import { Auth } from './pages/Auth';
 import { CalendarHome } from './pages/CalendarHome';
@@ -14,10 +14,10 @@ import { AdminUsers } from './pages/AdminUsers';
 function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
-  const [dbInitialized, setDbInitialized] = useState(false);
   const isProcessingHistoryRef = useRef(false);
   const currentUser = useStore((state) => state.currentUser);
   const logout = useStore((state) => state.logout);
+  const setCurrentUser = useStore((state) => state.setCurrentUser);
   const view = useStore((state) => state.currentView);
   const setView = useStore((state) => state.setCurrentView);
 
@@ -31,17 +31,62 @@ function App() {
   const safeView = validViews.includes(view) ? view : 'auth';
 
   useEffect(() => {
-    // Init online API layer in background (non-blocking for offline use)
-    (async () => {
-      try {
-        await db.initialize();
-      } catch (error) {
-        console.error('[App] db.initialize failed (offline ok):', error);
-      } finally {
-        setDbInitialized(true);
+    // Validar sesión: logout automático si > 60 días
+    if (currentUser && currentUser.loginTimestamp) {
+      const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
+      const sessionAgeMs = Date.now() - currentUser.loginTimestamp;
+      
+      if (sessionAgeMs > TWO_MONTHS_MS) {
+        console.log('[App] Session expired (60+ days), logging out');
+        logout();
+        return;
       }
-    })();
-  }, []);
+    }
+
+    // Chequear si necesita sync diario (hace > 24h que no sincroniza)
+    if (currentUser && navigator.onLine) {
+      const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+      const lastSync = currentUser.lastSyncTimestamp || 0;
+      const timeSinceLastSync = Date.now() - lastSync;
+
+      if (timeSinceLastSync > ONE_DAY_MS) {
+        console.log('[App] Forcing daily sync (>24h since last sync)');
+        (async () => {
+          try {
+            const apiUrl = window.location.hostname === 'localhost'
+              ? 'http://localhost:3001/api'
+              : '/api';
+            await syncDatabase(currentUser.id, apiUrl);
+            // Actualizar lastSyncTimestamp en el store
+            setCurrentUser({
+              ...currentUser,
+              lastSyncTimestamp: Date.now(),
+            });
+          } catch (error) {
+            console.error('[App] Daily sync failed:', error);
+          }
+        })();
+      }
+    }
+  }, [currentUser?.id]);
+
+  // Chequear expiración periódicamente
+  useEffect(() => {
+    const checkExpiry = setInterval(() => {
+      if (currentUser && currentUser.loginTimestamp) {
+        const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
+        const sessionAgeMs = Date.now() - currentUser.loginTimestamp;
+        
+        if (sessionAgeMs > TWO_MONTHS_MS) {
+          console.log('[App] Session expired, logging out');
+          logout();
+          clearInterval(checkExpiry);
+        }
+      }
+    }, 60000); // Chequear cada minuto
+    
+    return () => clearInterval(checkExpiry);
+  }, [currentUser, logout]);
 
   useEffect(() => {
     // Init local database layer when a user session exists
@@ -137,7 +182,7 @@ function App() {
     setView('auth');
   };
 
-  if (!dbInitialized || !hasHydrated) {
+  if (!hasHydrated) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">

@@ -8,6 +8,7 @@ import { synchronize } from '@nozbe/watermelondb/sync';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import { schema } from './db-schema';
 import { UserModel, GarmentModel, OutfitModel } from './db-models';
+import { uploadImageToCloudinary } from './cloudinary';
 
 let watermelonDb: Database | null = null;
 let initialized = false;
@@ -51,12 +52,61 @@ export async function getWatermelonDb() {
 }
 
 /**
- * Sincronización con Turso (backend)
+ * Procesa imágenes pendientes de subir a Cloudinary
+ * Se llama antes de sincronizar cambios al servidor
+ */
+async function processPendingImageUploads(userId: string) {
+  try {
+    const db = await getWatermelonDb();
+    const collection = db.get<GarmentModel>('garments');
+
+    // Obtener todas las prendas del usuario
+    const allGarments = await collection.query().fetch() as any[];
+    const userGarments = allGarments.filter((g: any) => g.user_id === userId);
+
+    // Procesar solo las que aún son base64 (pendientes de upload)
+    for (const garment of userGarments) {
+      // Si image_url es base64 (empieza con "data:"), necesita upload
+      if (garment.image_url?.startsWith('data:')) {
+        try {
+          console.log(`[WatermelonDB] Uploading pending image for garment ${garment.id}...`);
+          
+          // Subir base64 a Cloudinary
+          const cloudinaryUrl = await uploadImageToCloudinary(
+            garment.image_url,
+            userId,
+            garment.id
+          );
+
+          // Actualizar garment localmente con URL de Cloudinary
+          await db.write(async () => {
+            await garment.update((g: any) => {
+              g.image_url = cloudinaryUrl;
+            });
+          });
+
+          console.log(`[WatermelonDB] Image uploaded successfully for ${garment.id}`);
+        } catch (error) {
+          console.warn(`[WatermelonDB] Failed to upload image for ${garment.id}:`, error);
+          // Continuar con otros garments, no bloquear sync
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('[WatermelonDB] processPendingImageUploads error:', error);
+    // No bloquear sync si hay error
+  }
+}
+
+/**
  * Se llama cuando hay conexión a internet
  */
 export async function syncDatabase(userId: string, apiUrl: string) {
   try {
     console.log('[WatermelonDB] Starting sync...');
+
+    // Procesar pending image uploads ANTES de sync
+    await processPendingImageUploads(userId);
 
     const db = await getWatermelonDb();
 
@@ -82,23 +132,41 @@ export async function syncDatabase(userId: string, apiUrl: string) {
         return { changes, timestamp };
       },
       pushChanges: async ({ changes }) => {
-        // Enviar cambios locales al servidor
-        const response = await fetch(`${apiUrl}/sync/push`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            changes,
-          }),
-        });
+        // Enviar cambios locales al servidor (con reintentos)
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            const response = await fetch(`${apiUrl}/sync/push`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId,
+                changes,
+              }),
+            });
 
-        if (!response.ok) {
-          throw new Error(`Push failed: ${response.statusText}`);
+            if (!response.ok) {
+              throw new Error(`Push failed: ${response.statusText}`);
+            }
+
+            console.log('[WatermelonDB] Pushed changes successfully');
+            break; // Éxito
+          } catch (error) {
+            retries--;
+            if (retries === 0) {
+              // Último reintento falló
+              console.error('[WatermelonDB] Push failed after 3 retries:', error);
+              throw error;
+            }
+            // Esperar exponencial backoff antes de reintentar
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, 3 - retries) * 1000));
+          }
         }
-
-        console.log('[WatermelonDB] Pushed changes successfully');
       },
     });
+
+    // Marcar sync exitoso
+    window.dispatchEvent(new CustomEvent('sync-complete', { detail: { timestamp: Date.now() } }));
   } catch (error) {
     console.error('[WatermelonDB] Sync failed:', error);
   }

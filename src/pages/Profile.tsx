@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react';
 import type { ChangeEvent } from 'react';
-import { ArrowLeft, Camera, LogOut, Trash2, Lock, Mail, User as UserIcon, Shield, Users } from 'lucide-react';
+import { ArrowLeft, Camera, LogOut, Trash2, Lock, Mail, User as UserIcon, Shield, Users, RefreshCw, Clock } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { db } from '../lib/db';
+import { watermelonService } from '../lib/watermelon-service';
+import { syncDatabase } from '../lib/watermelon';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useToast } from '../components/ui/Toast';
@@ -29,11 +31,75 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [syncing, setSyncing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     if (!currentUser) {
         return null;
     }
+
+    const handleManualSync = async () => {
+        setSyncing(true);
+        try {
+            const apiUrl = window.location.hostname === 'localhost'
+                ? 'http://localhost:3001/api'
+                : '/api';
+            await syncDatabase(currentUser.id, apiUrl);
+            setCurrentUser({
+                ...currentUser,
+                lastSyncTimestamp: Date.now(),
+            });
+            showToast({
+                type: 'success',
+                message: '✅ Sincronizado correctamente',
+            });
+        } catch (err) {
+            showToast({
+                type: 'error',
+                message: 'Error al sincronizar',
+            });
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    const handleClearData = async () => {
+        if (!window.confirm('¿Borrar todos los datos locales? Esta acción no se puede deshacer.')) {
+            return;
+        }
+
+        try {
+            await watermelonService.clearAll();
+            showToast({
+                type: 'success',
+                message: 'Datos locales borrados',
+            });
+        } catch (err) {
+            showToast({
+                type: 'error',
+                message: 'Error al borrar datos',
+            });
+        }
+    };
+
+    const formatLastSync = (timestamp?: number) => {
+        if (!timestamp || timestamp === 0) return 'Nunca sincronizado';
+        
+        const now = Date.now();
+        const diff = now - timestamp;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+
+        if (minutes < 1) return 'Hace poco';
+        if (minutes < 60) return `Hace ${minutes}m`;
+        if (hours < 24) return `Hace ${hours}h`;
+        return `Hace ${days}d`;
+    };
+
+    const sessionDaysLeft = currentUser.loginTimestamp 
+        ? Math.floor((60 * 24 * 60 * 60 * 1000 - (Date.now() - currentUser.loginTimestamp)) / (24 * 60 * 60 * 1000))
+        : 60;
 
     const handleUpdateProfile = async () => {
         setError('');
@@ -398,18 +464,60 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                     )}
                 </div>
 
-                {/* Future Features (Disabled) */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 opacity-50">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Próximamente</h3>
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between py-2">
-                            <span className="text-sm text-slate-600">☁️ Sincronización en la nube</span>
-                            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">Pronto</span>
+                {/* Synchronization & Storage */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Sincronización</h3>
+                    <div className="space-y-4">
+                        {/* Last Sync Info */}
+                        <div className="flex items-center justify-between py-3 border-b border-slate-100">
+                            <div className="flex items-center space-x-2">
+                                <Clock className="w-4 h-4 text-slate-500" />
+                                <span className="text-sm text-slate-600">Última sincronización</span>
+                            </div>
+                            <span className="text-sm font-medium text-slate-900">
+                                {currentUser?.lastSyncTimestamp && currentUser.lastSyncTimestamp > 0
+                                    ? formatLastSync(currentUser.lastSyncTimestamp)
+                                    : 'Nunca'}
+                            </span>
                         </div>
-                        <div className="flex items-center justify-between py-2">
-                            <span className="text-sm text-slate-600">🔗 Invitar amigos al armario</span>
-                            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">Pronto</span>
+
+                        {/* Session Info */}
+                        <div className="flex items-center justify-between py-3 border-b border-slate-100">
+                            <div className="flex items-center space-x-2">
+                                <Clock className="w-4 h-4 text-slate-500" />
+                                <span className="text-sm text-slate-600">Sesión válida por</span>
+                            </div>
+                            <span className="text-sm font-medium text-slate-900">
+                                {currentUser?.loginTimestamp
+                                    ? `${Math.max(0, sessionDaysLeft)} días`
+                                    : 'N/A'}
+                            </span>
                         </div>
+
+                        {/* Sync Button */}
+                        <Button
+                            onClick={handleManualSync}
+                            disabled={syncing}
+                            className="w-full"
+                        >
+                            <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                            {syncing ? 'Sincronizando...' : 'Sincronizar Ahora'}
+                        </Button>
+
+                        {/* Clear Data Button */}
+                        <Button
+                            variant="secondary"
+                            onClick={handleClearData}
+                            className="w-full"
+                        >
+                            <Trash2 className="w-5 h-5 mr-2" />
+                            Borrar Datos Locales
+                        </Button>
+
+                        <p className="text-xs text-slate-500 mt-3">
+                            Las imágenes se sincronizan automáticamente con Cloudinary cuando hay conexión.
+                            Tus datos están seguros en múltiples dispositivos.
+                        </p>
                     </div>
                 </div>
 
