@@ -31,8 +31,29 @@ function App() {
   const safeView = validViews.includes(view) ? view : 'auth';
 
   useEffect(() => {
-    initializeDatabase();
+    // Init online API layer in background (non-blocking for offline use)
+    (async () => {
+      try {
+        await db.initialize();
+      } catch (error) {
+        console.error('[App] db.initialize failed (offline ok):', error);
+      } finally {
+        setDbInitialized(true);
+      }
+    })();
   }, []);
+
+  useEffect(() => {
+    // Init local database layer when a user session exists
+    if (!currentUser) return;
+    (async () => {
+      try {
+        await watermelonService.initialize(currentUser.id);
+      } catch (error) {
+        console.error('[App] Watermelon init failed:', error);
+      }
+    })();
+  }, [currentUser?.id]);
 
   // Manejo del historial y gestos de navegación del sistema
   useEffect(() => {
@@ -84,25 +105,7 @@ function App() {
     }
   }, [currentUser]);
 
-  const initializeDatabase = async () => {
-    try {
-      // Inicializa WatermelonDB (SQLite local offline-first)
-      // Primero espera a que el usuario esté autenticado
-      if (currentUser) {
-        await watermelonService.initialize(currentUser.id);
-      }
-
-      // También inicializa Turso (para operaciones online y sincronización)
-      await db.initialize();
-
-      setDbInitialized(true);
-      console.log('[App] Database initialized (WatermelonDB + Turso)');
-    } catch (error) {
-      console.error('[App] Failed to initialize database:', error);
-      // No bloqueamos la app, funciona offline incluso sin Turso
-      setDbInitialized(true);
-    }
-  };
+  // initializeDatabase() removed: initialization is now split into two effects
 
   const handleAuthSuccess = () => {
     setView('calendar');
