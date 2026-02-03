@@ -50,7 +50,6 @@ export function DailyOutfitStage({ selectedDate, onEditOutfit }: DailyOutfitStag
     return (
         <OutfitDisplay
             outfit={currentOutfit}
-            optionIndex={currentIndex + 1}
             totalOptions={options.length}
             allGarments={allGarments}
             onEdit={() => onEditOutfit(currentOutfit.id)}
@@ -82,7 +81,6 @@ function EmptyStatePlaceholder({ onCreateOutfit }: { onCreateOutfit: () => void 
 // Outfit Display Component with Swipe
 function OutfitDisplay({
     outfit,
-    optionIndex,
     totalOptions,
     allGarments,
     onEdit,
@@ -90,7 +88,6 @@ function OutfitDisplay({
     currentIndex,
 }: {
     outfit: Outfit;
-    optionIndex: number;
     totalOptions: number;
     allGarments: any[];
     onEdit: () => void;
