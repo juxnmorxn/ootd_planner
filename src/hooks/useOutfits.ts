@@ -93,6 +93,16 @@ export function useOutfits() {
         return await watermelonService.getOutfitByDate(currentUser.id, date);
     };
 
+    const getOutfitById = (id: string): Outfit | null => {
+        return outfits.find((o) => o.id === id) || null;
+    };
+
+    const getOutfitOptionsByDate = async (date: string): Promise<Outfit[]> => {
+        if (!currentUser) return [];
+        // Return all outfits for this date for this user
+        return outfits.filter((o) => o.date_scheduled === date && o.user_id === currentUser.id);
+    };
+
     const duplicateOutfit = async (source: Outfit): Promise<Outfit> => {
         const layers: OutfitLayer[] = JSON.parse(source.layers_json);
         return await createOutfit(source.date_scheduled, layers);
@@ -110,6 +120,8 @@ export function useOutfits() {
         updateOutfit,
         deleteOutfit,
         getOutfitByDate,
+        getOutfitById,
+        getOutfitOptionsByDate,
         duplicateOutfit,
         refresh,
     };

@@ -68,20 +68,11 @@ export async function syncDatabase(userId: string, apiUrl: string) {
 
         console.log('[WatermelonDB] Pushed changes successfully');
       },
-      onComplete: () => {
-        console.log('[WatermelonDB] ✅ Sync complete');
-        // Dispatchear evento para actualizar UI
-        window.dispatchEvent(new CustomEvent('db-synced'));
-      },
-      onError: (error) => {
-        console.error('[WatermelonDB] Sync error:', error);
-        // Reintentar en background más tarde
-      },
-    });
-  } catch (error) {
-    console.error('[WatermelonDB] Sync failed:', error);
+      });
+    } catch (error) {
+      console.error('[WatermelonDB] Sync failed:', error);
+    }
   }
-}
 
 /**
  * Sincronización automática cada 30 segundos cuando hay internet
