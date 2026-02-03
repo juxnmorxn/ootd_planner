@@ -64,15 +64,15 @@ function EmptyStatePlaceholder({ onCreateOutfit }: { onCreateOutfit: () => void 
     return (
         <button
             onClick={onCreateOutfit}
-            className="flex-1 flex items-center justify-center bg-white relative overflow-hidden touch-manipulation group"
+            className="w-full min-h-[400px] flex items-center justify-center bg-white touch-manipulation group"
         >
             {/* CTA */}
-            <div className="relative z-10 text-center px-8">
-                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:shadow-md transition-shadow border-2 border-slate-100">
+            <div className="text-center px-8 py-12">
+                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm group-hover:shadow-md transition-shadow border-2 border-slate-100">
                     <Plus className="w-10 h-10 text-slate-400 group-hover:text-black transition-colors" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Sin outfit planeado</h3>
-                <p className="text-slate-500">Toca para armar tu look del día</p>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">Sin outfit planeado</h3>
+                <p className="text-base text-slate-500">Toca para armar tu look del día</p>
             </div>
         </button>
     );

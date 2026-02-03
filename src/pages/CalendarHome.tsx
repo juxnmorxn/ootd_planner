@@ -42,7 +42,7 @@ export function CalendarHome({ onEditOutfit }: CalendarHomeProps) {
             </div>
 
             {/* Main Section: The Stage (75%) - Con scroll y padding para barra inferior */}
-            <div className="flex-1 overflow-y-auto pb-20">
+            <div className="flex-1 overflow-y-auto pb-20 pt-2">
                 <DailyOutfitStage
                     selectedDate={selectedDate}
                     onEditOutfit={handleEditOutfit}

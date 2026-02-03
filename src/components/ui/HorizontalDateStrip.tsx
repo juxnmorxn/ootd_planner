@@ -89,9 +89,9 @@ export function HorizontalDateStrip({
     }, [selectedDate]);
 
     return (
-        <div className="bg-white border-b border-slate-100">
+        <div className="bg-white border-b border-slate-100 safe-area-inset-top">
             {/* Compact Month Header */}
-            <div className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-2">
                     <h2 className="text-base font-bold text-slate-900">
                         {monthNames[month]} {year}
