@@ -45,7 +45,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
 
             if (useAI) {
                 // 1) Comprimir/redimensionar para que el modelo procese menos píxeles
-                setLoadingText('Optimizando imagen...');
+                setLoadingText('📦 Optimizando imagen...');
                 const smaller = await compressImage(dataUrl, 0.8);
 
                 // 2) Usar estrategia HYBRID: REMBG Backend si hay internet, fallback a @imgly local

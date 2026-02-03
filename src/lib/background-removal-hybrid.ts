@@ -15,19 +15,17 @@ export async function removeBackgroundHybrid(
 ): Promise<string> {
     const isOnline = navigator.onLine;
     
-    onProgress?.('Detectando conexión...');
-    
     if (isOnline) {
         try {
-            onProgress?.('Enviando a servidor...');
+            onProgress?.('🌐 Enviando a servidor... (~1-2s)');
             return await removeBackgroundViaServer(imageData, onProgress);
         } catch (error) {
             console.warn('[Hybrid] REMBG Backend falló, fallback a local IA:', error);
-            onProgress?.('Servidor no disponible, usando IA local...');
+            onProgress?.('⚠️ Servidor no disponible, usando IA local... (~5-8s)');
             return await removeBackgroundLocal(imageData, onProgress);
         }
     } else {
-        onProgress?.('Modo offline: usando IA local...');
+        onProgress?.('📱 Modo offline: IA local... (~5-8s, ~40MB primera vez)');
         return await removeBackgroundLocal(imageData, onProgress);
     }
 }
@@ -41,7 +39,7 @@ async function removeBackgroundViaServer(
     onProgress?: (message: string) => void
 ): Promise<string> {
     try {
-        onProgress?.('Procesando en servidor...');
+        onProgress?.('⏳ Procesando en servidor...');
         
         const response = await fetch('/api/remove-background', {
             method: 'POST',
@@ -59,7 +57,7 @@ async function removeBackgroundViaServer(
         }
 
         const data = await response.json();
-        onProgress?.('¡Listo!');
+        onProgress?.('✅ ¡Fondo removido!');
         return data.imageData;
     } catch (error) {
         console.error('[Backend] Background removal error:', error);
@@ -76,16 +74,16 @@ async function removeBackgroundLocal(
     onProgress?: (message: string) => void
 ): Promise<string> {
     try {
-        onProgress?.('Descargando modelos de IA (~40MB primera vez)...');
+        onProgress?.('📥 Descargando modelos IA (~40MB)...');
         
         const blob = await removeBackground(imageData, {
             progress: (key: string, current: number, total: number) => {
                 const percentage = Math.round((current / total) * 100);
-                onProgress?.(`Procesando IA: ${key} (${percentage}%)`);
+                onProgress?.(`🤖 Procesando: ${key} (${percentage}%)`);
             },
         });
 
-        onProgress?.('Convertiendo resultado...');
+        onProgress?.('🔄 Finalizando...');
         
         // Convertir blob a data URL
         return new Promise((resolve, reject) => {
