@@ -1,8 +1,14 @@
 import type { Garment, Outfit, User, RegisterData, LoginCredentials } from '../types';
 
-const API_URL = window.location.hostname === 'localhost'
-    ? 'http://localhost:3001/api'
-    : '/api';
+// En desarrollo local: localhost:3001
+// En producción (Render, etc): misma ruta pero vía proxy
+const API_URL = (() => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:3001/api';
+    }
+    // En producción, usar ruta relativa (el servidor frontend sirve /api)
+    return '/api';
+})();
 
 class APIDatabase {
     // ============ USERS ============

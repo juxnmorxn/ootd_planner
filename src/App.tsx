@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { db } from './lib/db';
+import { watermelonService } from './lib/watermelon-service';
 import { useStore } from './lib/store';
 import { Auth } from './pages/Auth';
 import { CalendarHome } from './pages/CalendarHome';
@@ -85,13 +86,20 @@ function App() {
 
   const initializeDatabase = async () => {
     try {
+      // Inicializa WatermelonDB (SQLite local offline-first)
+      // Primero espera a que el usuario esté autenticado
+      if (currentUser) {
+        await watermelonService.initialize(currentUser.id);
+      }
+
+      // También inicializa Turso (para operaciones online y sincronización)
       await db.initialize();
 
       setDbInitialized(true);
-      console.log('Database initialized successfully');
+      console.log('[App] Database initialized (WatermelonDB + Turso)');
     } catch (error) {
-      console.error('Failed to initialize database:', error);
-      // No bloqueamos la app, pero mostramos error
+      console.error('[App] Failed to initialize database:', error);
+      // No bloqueamos la app, funciona offline incluso sin Turso
       setDbInitialized(true);
     }
   };

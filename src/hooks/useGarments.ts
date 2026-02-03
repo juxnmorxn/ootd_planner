@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/db';
+import { watermelonService } from '../lib/watermelon-service';
 import type { Garment, GarmentCategory } from '../types';
 import { useStore } from '../lib/store';
 
 /**
- * Hook to manage garments for the current user with real-time updates
+ * Hook to manage garments for the current user with offline-first support
+ * Usa WatermelonDB: datos locales + sincronización automática
  */
 export function useGarments(category?: GarmentCategory) {
     const currentUser = useStore((state) => state.currentUser);
@@ -22,8 +23,8 @@ export function useGarments(category?: GarmentCategory) {
         try {
             setLoading(true);
             const data = category
-                ? await db.getGarmentsByCategory(currentUser.id, category)
-                : await db.getGarmentsByUser(currentUser.id);
+                ? await watermelonService.getGarmentsByCategory(currentUser.id, category)
+                : await watermelonService.getGarmentsByUser(currentUser.id);
             setGarments(data);
             setError(null);
         } catch (err) {
@@ -38,24 +39,21 @@ export function useGarments(category?: GarmentCategory) {
         loadGarments();
     }, [currentUser?.id, category]);
 
-    // Escuchar cambios en tiempo real
+    // Escuchar cambios de sincronización
     useEffect(() => {
-        const handleDbChange = (event: Event) => {
-            const customEvent = event as CustomEvent;
-            if (customEvent.detail.type === 'garment') {
-                console.log('[useGarments] Detected change, reloading...');
-                loadGarments();
-            }
+        const handleDbSynced = () => {
+            console.log('[useGarments] Database synced, reloading...');
+            loadGarments();
         };
 
-        window.addEventListener('db-change', handleDbChange);
-        return () => window.removeEventListener('db-change', handleDbChange);
+        window.addEventListener('db-synced', handleDbSynced);
+        return () => window.removeEventListener('db-synced', handleDbSynced);
     }, [currentUser?.id, category]);
 
     const addGarment = async (garment: Omit<Garment, 'created_at'>) => {
         try {
-            const newGarment = await db.createGarment(garment);
-            // No need to update state manually, the event will trigger reload
+            const newGarment = await watermelonService.createGarment(garment as any);
+            loadGarments(); // Recargar lista
             return newGarment;
         } catch (err) {
             console.error('Failed to add garment:', err);
@@ -67,8 +65,8 @@ export function useGarments(category?: GarmentCategory) {
         if (!currentUser) throw new Error('No user logged in');
 
         try {
-            await db.deleteGarment(id, currentUser.id);
-            // No need to update state manually, the event will trigger reload
+            await watermelonService.deleteGarment(id);
+            loadGarments(); // Recargar lista
         } catch (err) {
             console.error('Failed to delete garment:', err);
             throw err;

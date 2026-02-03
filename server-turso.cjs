@@ -704,6 +704,284 @@ app.get('/api/stats/:userId', async (req, res) => {
   }
 });
 
+// ============ SYNC (WatermelonDB) ============
+
+/**
+ * POST /api/sync/pull
+ * WatermelonDB descarga cambios desde Turso
+ * 
+ * Request: { userId, lastPulledAt }
+ * Response: { changes, timestamp }
+ */
+app.post('/api/sync/pull', async (req, res) => {
+  try {
+    const { userId, lastPulledAt } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    const timestamp = Date.now();
+    const lastPulledDate = new Date(lastPulledAt || 0).toISOString();
+
+    // Traer garments modificados
+    const { rows: garmentRows } = await turso.execute({
+      sql: `SELECT * FROM garments 
+            WHERE user_id = ?1 
+            AND (created_at > ?2 OR updated_at > ?2)
+            ORDER BY updated_at DESC`,
+      args: [userId, lastPulledDate],
+    });
+
+    // Traer outfits modificados
+    const { rows: outfitRows } = await turso.execute({
+      sql: `SELECT * FROM outfits 
+            WHERE user_id = ?1 
+            AND (created_at > ?2 OR updated_at > ?2)
+            ORDER BY updated_at DESC`,
+      args: [userId, lastPulledDate],
+    });
+
+    // Clasificar garments en created, updated, deleted
+    const garmentChanges = {
+      created: [],
+      updated: [],
+      deleted: [],
+    };
+
+    for (const g of garmentRows) {
+      const createdAt = new Date(g.created_at).getTime();
+      const updatedAt = new Date(g.updated_at).getTime();
+
+      // Si created_at == updated_at, es una creación
+      if (createdAt === updatedAt) {
+        garmentChanges.created.push(g);
+      } else {
+        garmentChanges.updated.push(g);
+      }
+    }
+
+    // Clasificar outfits en created, updated, deleted
+    const outfitChanges = {
+      created: [],
+      updated: [],
+      deleted: [],
+    };
+
+    for (const o of outfitRows) {
+      const createdAt = new Date(o.created_at).getTime();
+      const updatedAt = new Date(o.updated_at).getTime();
+
+      if (createdAt === updatedAt) {
+        outfitChanges.created.push(o);
+      } else {
+        outfitChanges.updated.push(o);
+      }
+    }
+
+    res.json({
+      changes: {
+        garments: garmentChanges,
+        outfits: outfitChanges,
+        users: {
+          created: [],
+          updated: [],
+          deleted: [],
+        },
+      },
+      timestamp,
+    });
+  } catch (error) {
+    console.error('[API] Sync pull error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/sync/push
+ * WatermelonDB carga cambios a Turso
+ * 
+ * Request: { userId, changes: { garments, outfits, users } }
+ * Response: { success: true }
+ */
+app.post('/api/sync/push', async (req, res) => {
+  try {
+    const { userId, changes } = req.body;
+
+    if (!userId || !changes) {
+      return res.status(400).json({ error: 'userId and changes required' });
+    }
+
+    const now = new Date().toISOString();
+
+    // ===== GARMENTS =====
+    if (changes.garments) {
+      // Created garments
+      for (const g of changes.garments.created || []) {
+        const { id, category, sub_category, image_url, cloudinary_id } = g;
+        await turso.execute({
+          sql: `INSERT OR REPLACE INTO garments 
+                (id, user_id, category, sub_category, image_url, cloudinary_id, created_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+          args: [id, userId, category, sub_category, image_url || '', cloudinary_id || '', now],
+        });
+      }
+
+      // Updated garments
+      for (const g of changes.garments.updated || []) {
+        const { id, category, sub_category, image_url } = g;
+        await turso.execute({
+          sql: `UPDATE garments 
+                SET category = ?1, sub_category = ?2, image_url = ?3, updated_at = ?4
+                WHERE id = ?5`,
+          args: [category, sub_category, image_url || '', now, id],
+        });
+      }
+
+      // Deleted garments
+      for (const gId of changes.garments.deleted || []) {
+        await turso.execute({
+          sql: 'DELETE FROM garments WHERE id = ?1 AND user_id = ?2',
+          args: [gId, userId],
+        });
+      }
+    }
+
+    // ===== OUTFITS =====
+    if (changes.outfits) {
+      // Created outfits
+      for (const o of changes.outfits.created || []) {
+        const { id, date_scheduled, option_index, layers_json } = o;
+        await turso.execute({
+          sql: `INSERT OR REPLACE INTO outfits 
+                (id, user_id, date_scheduled, option_index, layers_json, created_at, updated_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+          args: [id, userId, date_scheduled, option_index || 1, layers_json || '[]', now, now],
+        });
+      }
+
+      // Updated outfits
+      for (const o of changes.outfits.updated || []) {
+        const { id, date_scheduled, option_index, layers_json } = o;
+        await turso.execute({
+          sql: `UPDATE outfits 
+                SET date_scheduled = ?1, option_index = ?2, layers_json = ?3, updated_at = ?4
+                WHERE id = ?5`,
+          args: [date_scheduled, option_index || 1, layers_json || '[]', now, id],
+        });
+      }
+
+      // Deleted outfits
+      for (const oId of changes.outfits.deleted || []) {
+        await turso.execute({
+          sql: 'DELETE FROM outfits WHERE id = ?1 AND user_id = ?2',
+          args: [oId, userId],
+        });
+      }
+    }
+
+    // ===== USERS (si hay cambios en el perfil) =====
+    if (changes.users) {
+      for (const u of changes.users.updated || []) {
+        const { id, username, email, profile_pic, custom_subcategories } = u;
+        await turso.execute({
+          sql: `UPDATE users 
+                SET username = ?1, email = ?2, profile_pic = ?3, custom_subcategories = ?4, updated_at = ?5
+                WHERE id = ?6`,
+          args: [username, email, profile_pic, custom_subcategories, now, id],
+        });
+      }
+    }
+
+    console.log('[API] Sync push successful for user:', userId);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Sync push error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ REMOVE BACKGROUND (REMBG) ============
+
+app.post('/api/remove-background', async (req, res) => {
+  try {
+    const { imageData } = req.body;
+
+    if (!imageData) {
+      return res.status(400).json({ error: 'imageData required' });
+    }
+
+    // Llamar a REMBG via Python subprocess
+    const result = await removeBackgroundViaRembg(imageData);
+
+    res.json({ imageData: result });
+  } catch (error) {
+    console.error('[API] Remove background error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function removeBackgroundViaRembg(imageData) {
+  const { spawn } = require('child_process');
+  const fs = require('fs');
+  const path = require('path');
+  const os = require('os');
+
+  return new Promise((resolve, reject) => {
+    try {
+      // Crear archivos temporales
+      const tmpDir = os.tmpdir();
+      const inputFile = path.join(tmpDir, `rembg_input_${Date.now()}.png`);
+      const outputFile = path.join(tmpDir, `rembg_output_${Date.now()}.png`);
+
+      // Convertir base64 a archivo
+      const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+      fs.writeFileSync(inputFile, imageBuffer);
+
+      // Ejecutar REMBG
+      const rembg = spawn('python', ['-m', 'rembg', 'i', inputFile, outputFile]);
+
+      const timeout = setTimeout(() => {
+        rembg.kill();
+        fs.unlink(inputFile, () => {});
+        fs.unlink(outputFile, () => {});
+        reject(new Error('REMBG timeout (30s)'));
+      }, 30000);
+
+      rembg.on('close', (code) => {
+        clearTimeout(timeout);
+
+        if (code !== 0) {
+          fs.unlink(inputFile, () => {});
+          fs.unlink(outputFile, () => {});
+          reject(new Error('REMBG failed'));
+          return;
+        }
+
+        // Leer resultado y convertir a base64
+        const resultBuffer = fs.readFileSync(outputFile);
+        const resultBase64 = `data:image/png;base64,${resultBuffer.toString('base64')}`;
+
+        // Limpiar archivos temporales
+        fs.unlink(inputFile, () => {});
+        fs.unlink(outputFile, () => {});
+
+        resolve(resultBase64);
+      });
+
+      rembg.on('error', (error) => {
+        clearTimeout(timeout);
+        fs.unlink(inputFile, () => {});
+        fs.unlink(outputFile, () => {});
+        reject(error);
+      });
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 // Static files
 app.use(express.static(path.join(__dirname, 'dist')));
 

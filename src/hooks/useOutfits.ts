@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/db';
+import { watermelonService } from '../lib/watermelon-service';
 import type { Outfit, OutfitLayer } from '../types';
 import { useStore } from '../lib/store';
 
 /**
- * Hook to manage outfits for the current user with real-time updates
+ * Hook to manage outfits for the current user with offline-first support
+ * Usa WatermelonDB: datos locales + sincronización automática
  */
 export function useOutfits() {
     const currentUser = useStore((state) => state.currentUser);
@@ -21,7 +22,7 @@ export function useOutfits() {
 
         try {
             setLoading(true);
-            const data = await db.getOutfitsByUser(currentUser.id);
+            const data = await watermelonService.getOutfitsByUser(currentUser.id);
             setOutfits(data);
             setError(null);
         } catch (err) {
@@ -36,32 +37,31 @@ export function useOutfits() {
         loadOutfits();
     }, [currentUser?.id]);
 
-    // Escuchar cambios en tiempo real
+    // Escuchar cambios de sincronización
     useEffect(() => {
-        const handleDbChange = (event: Event) => {
-            const customEvent = event as CustomEvent;
-            if (customEvent.detail.type === 'outfit') {
-                console.log('[useOutfits] Detected change, reloading...');
-                loadOutfits();
-            }
+        const handleDbSynced = () => {
+            console.log('[useOutfits] Database synced, reloading...');
+            loadOutfits();
         };
 
-        window.addEventListener('db-change', handleDbChange);
-        return () => window.removeEventListener('db-change', handleDbChange);
+        window.addEventListener('db-synced', handleDbSynced);
+        return () => window.removeEventListener('db-synced', handleDbSynced);
     }, [currentUser?.id]);
 
     const createOutfit = async (date: string, layers: OutfitLayer[]) => {
         if (!currentUser) throw new Error('No user logged in');
 
         try {
-            const outfit = await db.createOutfit({
-                id: '', // será sobrescrito en db.createOutfit
+            const outfit: Outfit = {
+                id: '', // Se genera en WatermelonDB
                 user_id: currentUser.id,
                 date_scheduled: date,
                 layers_json: JSON.stringify(layers),
-            } as any);
-            // No need to update state manually, the event will trigger reload
-            return outfit;
+            };
+
+            const result = await watermelonService.createOutfit(outfit);
+            loadOutfits(); // Recargar lista
+            return result;
         } catch (err) {
             console.error('Failed to create outfit:', err);
             throw err;
@@ -70,8 +70,8 @@ export function useOutfits() {
 
     const updateOutfit = async (id: string, layers: OutfitLayer[]) => {
         try {
-            await db.updateOutfit(id, JSON.stringify(layers));
-            // No need to update state manually, the event will trigger reload
+            await watermelonService.updateOutfit(id, JSON.stringify(layers));
+            loadOutfits(); // Recargar lista
         } catch (err) {
             console.error('Failed to update outfit:', err);
             throw err;
@@ -80,8 +80,8 @@ export function useOutfits() {
 
     const deleteOutfit = async (id: string) => {
         try {
-            await db.deleteOutfit(id);
-            // No need to update state manually, the event will trigger reload
+            await watermelonService.deleteOutfit(id);
+            loadOutfits(); // Recargar lista
         } catch (err) {
             console.error('Failed to delete outfit:', err);
             throw err;
@@ -90,17 +90,7 @@ export function useOutfits() {
 
     const getOutfitByDate = async (date: string): Promise<Outfit | null> => {
         if (!currentUser) return null;
-        return await db.getOutfitByDate(currentUser.id, date);
-    };
-
-    const getOutfitById = async (id: string): Promise<Outfit | null> => {
-        if (!currentUser) return null;
-        return await db.getOutfitById(id);
-    };
-
-    const getOutfitOptionsByDate = async (date: string): Promise<Outfit[]> => {
-        if (!currentUser) return [];
-        return await db.getOutfitOptionsByDate(currentUser.id, date);
+        return await watermelonService.getOutfitByDate(currentUser.id, date);
     };
 
     const duplicateOutfit = async (source: Outfit): Promise<Outfit> => {
@@ -120,8 +110,6 @@ export function useOutfits() {
         updateOutfit,
         deleteOutfit,
         getOutfitByDate,
-        getOutfitById,
-        getOutfitOptionsByDate,
         duplicateOutfit,
         refresh,
     };
