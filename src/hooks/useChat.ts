@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import type { Contact, Conversation, Message, ConversationWithData, MessageWithSender } from '../types';
+import { useState } from 'react';
+import type { ConversationWithData, MessageWithSender } from '../types';
 
 const API_URL = (() => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {

@@ -5,10 +5,9 @@ import './Chats.css';
 
 interface ChatsPageProps {
     userId: string;
-    username: string;
 }
 
-export const Chats: React.FC<ChatsPageProps> = ({ userId, username }) => {
+export const Chats: React.FC<ChatsPageProps> = ({ userId }) => {
     const { conversations, getConversations } = useChat();
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);

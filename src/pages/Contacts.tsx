@@ -5,10 +5,9 @@ import './Contacts.css';
 
 interface ContactsPageProps {
     userId: string;
-    username: string;
 }
 
-export const Contacts: React.FC<ContactsPageProps> = ({ userId, username }) => {
+export const Contacts: React.FC<ContactsPageProps> = ({ userId }) => {
     const [refreshKey, setRefreshKey] = useState(0);
 
     const handleRequestSent = () => {

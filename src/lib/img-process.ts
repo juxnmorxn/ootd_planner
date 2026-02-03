@@ -54,8 +54,8 @@ export async function removeBackgroundFromImage(imageData: string): Promise<stri
         const compressed = await compressImage(imageData, 0.85, 768);
 
         const blob = await removeBackground(compressed, {
-            model: 'small',  // Modelo pequeño = más rápido (10-15s vs 30s)
-            batch: true,     // Procesar en batch si hay GPU
+            model: 'isnet_quint8',  // Modelo ligero y rápido compatible con el tipo de la librería
+            batch: true,            // Procesar en batch si hay GPU
             progress: (key, current, total) => {
                 const percentage = Math.round((current / total) * 100);
                 console.log(`[AI] ${key}: ${percentage}%`);

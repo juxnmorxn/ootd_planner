@@ -240,14 +240,12 @@ function App() {
         {safeView === 'contacts' && (
           <Contacts
             userId={currentUser.id}
-            username={currentUser.username || currentUser.email}
           />
         )}
 
         {safeView === 'chats' && (
           <Chats
             userId={currentUser.id}
-            username={currentUser.username || currentUser.email}
           />
         )}
       </div>
