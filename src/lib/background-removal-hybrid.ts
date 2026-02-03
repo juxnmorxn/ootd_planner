@@ -6,6 +6,8 @@
  * @param onProgress - Callback para mostrar progreso
  * @returns PNG transparente como data URL
  */
+import { removeBackgroundFromImage } from './img-process';
+
 export async function removeBackgroundHybrid(
     imageData: string,
     onProgress?: (message: string) => void
@@ -14,8 +16,9 @@ export async function removeBackgroundHybrid(
         onProgress?.('✨ Removiendo fondo...');
         return await removeBackgroundViaRembg(imageData, onProgress);
     } catch (error) {
-        console.error('[Background Removal] Error:', error);
-        throw error;
+        console.warn('[Background Removal] REMBG falló; usando fallback local (@imgly).', error);
+        onProgress?.('🧠 Fallback local (puede tardar)...');
+        return await removeBackgroundFromImage(imageData);
     }
 }
 

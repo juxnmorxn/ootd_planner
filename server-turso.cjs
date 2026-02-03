@@ -972,7 +972,19 @@ async function removeBackgroundViaRembg(imageData) {
       fs.writeFileSync(inputFile, imageBuffer);
 
       // Ejecutar REMBG
-      const rembg = spawn('python', ['-m', 'rembg', 'i', inputFile, outputFile]);
+      const pythonCmdFromEnv = process.env.REMBG_PYTHON || 'python';
+
+      const spawnRembg = (pythonCmd) =>
+        spawn(pythonCmd, ['-m', 'rembg', 'i', inputFile, outputFile], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+
+      let rembg = spawnRembg(pythonCmdFromEnv);
+      let stdout = '';
+      let stderr = '';
+
+      if (rembg.stdout) rembg.stdout.on('data', (d) => (stdout += d.toString()));
+      if (rembg.stderr) rembg.stderr.on('data', (d) => (stderr += d.toString()));
 
       const timeout = setTimeout(() => {
         rembg.kill();
@@ -987,7 +999,14 @@ async function removeBackgroundViaRembg(imageData) {
         if (code !== 0) {
           fs.unlink(inputFile, () => {});
           fs.unlink(outputFile, () => {});
-          reject(new Error('REMBG failed'));
+          const details = (stderr || stdout || '').trim();
+          reject(new Error(`REMBG failed (code ${code})${details ? `: ${details}` : ''}`));
+          return;
+        }
+
+        if (!fs.existsSync(outputFile)) {
+          fs.unlink(inputFile, () => {});
+          reject(new Error('REMBG produced no output file'));
           return;
         }
 
@@ -1003,6 +1022,52 @@ async function removeBackgroundViaRembg(imageData) {
       });
 
       rembg.on('error', (error) => {
+        // Render suele tener python3, no python
+        if (error && error.code === 'ENOENT' && (process.env.REMBG_PYTHON || 'python') === 'python') {
+          try {
+            rembg = spawnRembg('python3');
+            stdout = '';
+            stderr = '';
+
+            if (rembg.stdout) rembg.stdout.on('data', (d) => (stdout += d.toString()));
+            if (rembg.stderr) rembg.stderr.on('data', (d) => (stderr += d.toString()));
+
+            rembg.on('close', (code) => {
+              clearTimeout(timeout);
+
+              if (code !== 0) {
+                fs.unlink(inputFile, () => {});
+                fs.unlink(outputFile, () => {});
+                const details = (stderr || stdout || '').trim();
+                reject(new Error(`REMBG failed (code ${code})${details ? `: ${details}` : ''}`));
+                return;
+              }
+
+              if (!fs.existsSync(outputFile)) {
+                fs.unlink(inputFile, () => {});
+                reject(new Error('REMBG produced no output file'));
+                return;
+              }
+
+              const resultBuffer = fs.readFileSync(outputFile);
+              const resultBase64 = `data:image/png;base64,${resultBuffer.toString('base64')}`;
+              fs.unlink(inputFile, () => {});
+              fs.unlink(outputFile, () => {});
+              resolve(resultBase64);
+            });
+
+            rembg.on('error', (error2) => {
+              clearTimeout(timeout);
+              fs.unlink(inputFile, () => {});
+              fs.unlink(outputFile, () => {});
+              reject(error2);
+            });
+
+            return;
+          } catch (retryErr) {
+            // fall through to reject below
+          }
+        }
         clearTimeout(timeout);
         fs.unlink(inputFile, () => {});
         fs.unlink(outputFile, () => {});
