@@ -1,11 +1,6 @@
-import { removeBackground } from '@imgly/background-removal';
-
 /**
- * Eliminación de Fondo Offline para PWA:
- * - Usa @imgly local (~5-8s)
- * - Funciona completamente offline
- * - Primera vez descarga ~40MB de modelos
- * - Posteriores usos son más rápidos (caché)
+ * Eliminación de Fondo usando REMBG Backend (servidor)
+ * Rápido (~1-2s) y funciona en PWA
  * 
  * @param imageData - Base64 data URL de la imagen
  * @param onProgress - Callback para mostrar progreso
@@ -15,39 +10,46 @@ export async function removeBackgroundHybrid(
     imageData: string,
     onProgress?: (message: string) => void
 ): Promise<string> {
-    onProgress?.('⏳ Preparando IA local...');
-    return await removeBackgroundLocal(imageData, onProgress);
+    try {
+        onProgress?.('🌐 Enviando a servidor... (~1-2s)');
+        return await removeBackgroundViaServer(imageData, onProgress);
+    } catch (error) {
+        console.error('[Background Removal] Error:', error);
+        throw error;
+    }
 }
 
 /**
- * Elimina fondo usando @imgly local (100% offline)
- * Lento pero funciona sin conexión
+ * Elimina fondo usando REMBG Backend (servidor)
+ * Rápido y sin usar recursos del dispositivo
  */
-async function removeBackgroundLocal(
+async function removeBackgroundViaServer(
     imageData: string,
     onProgress?: (message: string) => void
 ): Promise<string> {
     try {
-        onProgress?.('📥 Descargando modelos (~40MB primera vez)...');
+        onProgress?.('⏳ Procesando...');
         
-        const blob = await removeBackground(imageData, {
-            progress: (key: string, current: number, total: number) => {
-                const percentage = Math.round((current / total) * 100);
-                onProgress?.(`🤖 Procesando: ${key} (${percentage}%)`);
+        const response = await fetch('/api/remove-background', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
             },
+            body: JSON.stringify({
+                imageData,
+            }),
         });
 
-        onProgress?.('🔄 Finalizando...');
-        
-        // Convertir blob a data URL
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Error en servidor');
+        }
+
+        const data = await response.json();
+        onProgress?.('✅ ¡Fondo removido!');
+        return data.imageData;
     } catch (error) {
-        console.error('[Local IA] Background removal failed:', error);
+        console.error('[Backend] Background removal error:', error);
         throw error;
     }
 }
