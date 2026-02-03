@@ -11,13 +11,20 @@ declare global {
   }
 }
 
-if (typeof window !== 'undefined' && !window.process) {
-  window.process = {
-    env: {},
-    version: '0.0.0',
-    versions: { node: '0.0.0' },
-  };
-}
+(() => {
+  const existing = (globalThis as any).process;
+  if (!existing) {
+    const shim = {
+      env: {},
+      version: '0.0.0',
+      versions: { node: '0.0.0' },
+    };
+    (globalThis as any).process = shim;
+    if (typeof window !== 'undefined') {
+      (window as any).process = shim;
+    }
+  }
+})();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
