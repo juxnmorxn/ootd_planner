@@ -4,7 +4,7 @@
  * Sincronización automática con Turso cuando hay internet
  */
 
-import watermelonDb, { syncDatabase, startAutoSync } from './watermelon';
+import { getWatermelonDb, syncDatabase, startAutoSync } from './watermelon';
 import { GarmentModel, OutfitModel } from './db-models';
 import type { Garment, Outfit } from '../types';
 
@@ -20,20 +20,27 @@ class WatermelonDatabaseService {
 
     console.log('[WatermelonDB] Initialized for user:', userId);
 
-    // Iniciar sincronización automática
-    const apiUrl = window.location.hostname === 'localhost'
-      ? 'http://localhost:3001/api'
-      : '/api';
+    try {
+      // Inicializar la BD
+      await getWatermelonDb();
 
-    startAutoSync(userId, apiUrl);
+      // Iniciar sincronización automática
+      const apiUrl = window.location.hostname === 'localhost'
+        ? 'http://localhost:3001/api'
+        : '/api';
 
-    // Sincronizar inmediatamente si hay internet
-    if (navigator.onLine) {
-      try {
-        await syncDatabase(userId, apiUrl);
-      } catch (error) {
-        console.error('[WatermelonDB] Initial sync failed:', error);
+      startAutoSync(userId, apiUrl);
+
+      // Sincronizar inmediatamente si hay internet
+      if (navigator.onLine) {
+        try {
+          await syncDatabase(userId, apiUrl);
+        } catch (error) {
+          console.error('[WatermelonDB] Initial sync failed:', error);
+        }
       }
+    } catch (error) {
+      console.error('[WatermelonDB] Initialize failed:', error);
     }
   }
 
@@ -41,10 +48,12 @@ class WatermelonDatabaseService {
 
   async createGarment(garment: Omit<Garment, 'created_at'> & { id: string }): Promise<Garment> {
     const now = new Date().toISOString();
-    const collection = watermelonDb.get<GarmentModel>('garments');
-
+    
     try {
-      await watermelonDb.write(async () => {
+      const db = await getWatermelonDb();
+      const collection = db.get<GarmentModel>('garments');
+
+      await db.write(async () => {
         await collection.create((g: any) => {
           g.id = garment.id;
           g.user_id = garment.user_id;
@@ -69,9 +78,10 @@ class WatermelonDatabaseService {
   }
 
   async getGarmentsByUser(userId: string): Promise<Garment[]> {
-    const collection = watermelonDb.get<GarmentModel>('garments');
-    
     try {
+      const db = await getWatermelonDb();
+      const collection = db.get<GarmentModel>('garments');
+      
       const allGarments = await collection.query().fetch() as any[];
       const userGarments = allGarments.filter((g: any) => g.user_id === userId);
       return userGarments.map((g: any) => ({
@@ -89,9 +99,10 @@ class WatermelonDatabaseService {
   }
 
   async getGarmentsByCategory(userId: string, category: string): Promise<Garment[]> {
-    const collection = watermelonDb.get<GarmentModel>('garments');
-    
     try {
+      const db = await getWatermelonDb();
+      const collection = db.get<GarmentModel>('garments');
+      
       const allGarments = await collection.query().fetch() as any[];
       const filtered = allGarments.filter((g: any) => g.user_id === userId && g.category === category);
 
@@ -110,11 +121,12 @@ class WatermelonDatabaseService {
   }
 
   async deleteGarment(garmentId: string): Promise<void> {
-    const collection = watermelonDb.get<GarmentModel>('garments');
-
     try {
+      const db = await getWatermelonDb();
+      const collection = db.get<GarmentModel>('garments');
+
       const garment = await collection.find(garmentId);
-      await watermelonDb.write(async () => {
+      await db.write(async () => {
         await garment.destroyPermanently();
       });
     } catch (error) {
@@ -125,10 +137,11 @@ class WatermelonDatabaseService {
   // ============ OUTFITS ============
 
   async createOutfit(outfit: Outfit): Promise<Outfit> {
-    const collection = watermelonDb.get<OutfitModel>('outfits');
-
     try {
-      await watermelonDb.write(async () => {
+      const db = await getWatermelonDb();
+      const collection = db.get<OutfitModel>('outfits');
+
+      await db.write(async () => {
         await collection.create((o: any) => {
           o.id = outfit.id;
           o.user_id = outfit.user_id;
@@ -145,9 +158,10 @@ class WatermelonDatabaseService {
   }
 
   async getOutfitsByUser(userId: string): Promise<Outfit[]> {
-    const collection = watermelonDb.get<OutfitModel>('outfits');
-    
     try {
+      const db = await getWatermelonDb();
+      const collection = db.get<OutfitModel>('outfits');
+      
       const allOutfits = await collection.query().fetch() as any[];
       const userOutfits = allOutfits.filter((o: any) => o.user_id === userId);
 
@@ -165,9 +179,10 @@ class WatermelonDatabaseService {
   }
 
   async getOutfitByDate(userId: string, date: string): Promise<Outfit | null> {
-    const collection = watermelonDb.get<OutfitModel>('outfits');
-    
     try {
+      const db = await getWatermelonDb();
+      const collection = db.get<OutfitModel>('outfits');
+      
       const allOutfits = await collection.query().fetch() as any[];
       const outfits = allOutfits.filter((o: any) => o.user_id === userId && o.date_scheduled === date);
 
@@ -188,11 +203,12 @@ class WatermelonDatabaseService {
   }
 
   async updateOutfit(id: string, layersJson: string): Promise<void> {
-    const collection = watermelonDb.get<OutfitModel>('outfits');
-
     try {
+      const db = await getWatermelonDb();
+      const collection = db.get<OutfitModel>('outfits');
+
       const outfit = await collection.find(id);
-      await watermelonDb.write(async () => {
+      await db.write(async () => {
         await outfit.update((o: any) => {
           o.layers_json = layersJson;
         });
@@ -203,11 +219,12 @@ class WatermelonDatabaseService {
   }
 
   async deleteOutfit(id: string): Promise<void> {
-    const collection = watermelonDb.get<OutfitModel>('outfits');
-
     try {
+      const db = await getWatermelonDb();
+      const collection = db.get<OutfitModel>('outfits');
+
       const outfit = await collection.find(id);
-      await watermelonDb.write(async () => {
+      await db.write(async () => {
         await outfit.destroyPermanently();
       });
     } catch (error) {
@@ -217,9 +234,10 @@ class WatermelonDatabaseService {
 
   async clearAll(): Promise<void> {
     try {
-      await watermelonDb.write(async () => {
-        const garments = watermelonDb.get<GarmentModel>('garments');
-        const outfits = watermelonDb.get<OutfitModel>('outfits');
+      const db = await getWatermelonDb();
+      await db.write(async () => {
+        const garments = db.get<GarmentModel>('garments');
+        const outfits = db.get<OutfitModel>('outfits');
 
         const allGarments = await garments.query().fetch();
         const allOutfits = await outfits.query().fetch();

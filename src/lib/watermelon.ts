@@ -9,18 +9,45 @@ import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { schema } from './db-schema';
 import { UserModel, GarmentModel, OutfitModel } from './db-models';
 
-// Crear el adaptador SQLite (en navegador usa sql.js)
-const adapter = new SQLiteAdapter({
-  schema,
-  // En el navegador, WatermelonDB usa sql.js (incluido en el bundle)
-  dbName: 'ootd_planner',
-  jsi: false, // Navegador no soporta JSI, usa sql.js
-});
+let watermelonDb: Database | null = null;
+let initialized = false;
 
-export const watermelonDb = new Database({
-  adapter,
-  modelClasses: [UserModel, GarmentModel, OutfitModel],
-});
+// Lazy initialization - solo cuando se use
+async function initDatabase() {
+  if (initialized) return watermelonDb;
+  if (watermelonDb) return watermelonDb;
+
+  try {
+    const adapter = new SQLiteAdapter({
+      schema,
+      dbName: 'ootd_planner',
+      jsi: false,
+    });
+
+    watermelonDb = new Database({
+      adapter,
+      modelClasses: [UserModel, GarmentModel, OutfitModel],
+    });
+
+    initialized = true;
+    console.log('[WatermelonDB] Initialized successfully');
+  } catch (error) {
+    console.error('[WatermelonDB] Initialization error:', error);
+    throw error;
+  }
+
+  return watermelonDb;
+}
+
+// Getter que asegura que la DB esté inicializada
+export async function getWatermelonDb() {
+  if (!watermelonDb) {
+    await initDatabase();
+  }
+  return watermelonDb!;
+}
+
+export { watermelonDb };
 
 /**
  * Sincronización con Turso (backend)
