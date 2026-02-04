@@ -267,6 +267,14 @@ async function getConversationByUsers(userId1, userId2) {
   return rows[0] || null;
 }
 
+async function getConversationById(conversationId) {
+  const { rows } = await turso.execute({
+    sql: 'SELECT * FROM conversations WHERE id = ?1',
+    args: [conversationId],
+  });
+  return rows[0] || null;
+}
+
 // ============ USERS & AUTH ============
 
 // Basic list (health-check)
@@ -709,6 +717,164 @@ app.post('/api/contacts/open-chat', async (req, res) => {
     });
   } catch (error) {
     console.error('[API] Contacts open-chat error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ CONVERSATIONS ============
+
+// Obtener conversaciones de un usuario
+app.get('/api/conversations/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { rows } = await turso.execute({
+      sql: 'SELECT * FROM conversations WHERE user_id_1 = ?1 OR user_id_2 = ?1 ORDER BY updated_at DESC',
+      args: [userId],
+    });
+
+    const enriched = [];
+
+    for (const conv of rows) {
+      const otherUserId = conv.user_id_1 === userId ? conv.user_id_2 : conv.user_id_1;
+      const otherUser = await getUserById(otherUserId);
+
+      const { rows: messageRows } = await turso.execute({
+        sql: 'SELECT * FROM messages WHERE conversation_id = ?1 ORDER BY created_at ASC',
+        args: [conv.id],
+      });
+
+      const unreadCount = messageRows.filter((m) => !m.read && m.sender_id !== userId).length;
+
+      enriched.push({
+        id: conv.id,
+        user_id_1: conv.user_id_1,
+        user_id_2: conv.user_id_2,
+        created_at: conv.created_at,
+        updated_at: conv.updated_at,
+        other_user: otherUser
+          ? { id: otherUser.id, username: otherUser.username, profile_pic: otherUser.profile_pic }
+          : null,
+        last_message: messageRows[messageRows.length - 1] || null,
+        unread_count: unreadCount,
+      });
+    }
+
+    res.json(enriched);
+  } catch (error) {
+    console.error('[API] Conversations list error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtener mensajes de una conversación
+app.get('/api/conversations/:conversationId/messages', async (req, res) => {
+  try {
+    const { rows } = await turso.execute({
+      sql: 'SELECT * FROM messages WHERE conversation_id = ?1 ORDER BY created_at ASC',
+      args: [req.params.conversationId],
+    });
+
+    const enriched = [];
+    for (const msg of rows) {
+      const sender = await getUserById(msg.sender_id);
+      enriched.push({
+        ...msg,
+        sender: sender
+          ? { id: sender.id, username: sender.username, profile_pic: sender.profile_pic }
+          : null,
+      });
+    }
+
+    res.json(enriched);
+  } catch (error) {
+    console.error('[API] Conversation messages error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ MESSAGES ============
+
+// Enviar mensaje
+app.post('/api/messages', async (req, res) => {
+  try {
+    const { conversation_id, sender_id, content, message_type } = req.body;
+
+    if (!conversation_id || !sender_id || !content) {
+      return res.status(400).json({ error: 'conversation_id, sender_id y content requeridos' });
+    }
+
+    const conversation = await getConversationById(conversation_id);
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversación no encontrada' });
+    }
+
+    if (conversation.user_id_1 !== sender_id && conversation.user_id_2 !== sender_id) {
+      return res.status(403).json({ error: 'No tienes permiso para enviar mensajes en esta conversación' });
+    }
+
+    const otherUserId = conversation.user_id_1 === sender_id ? conversation.user_id_2 : conversation.user_id_1;
+    const { rows: contactRows } = await turso.execute({
+      sql: 'SELECT * FROM contacts WHERE user_id = ?1 AND contact_id = ?2',
+      args: [sender_id, otherUserId],
+    });
+
+    const contact = contactRows[0];
+    if (!contact || contact.status !== 'aceptado') {
+      return res.status(403).json({ error: 'No puedes enviar mensajes a este usuario' });
+    }
+
+    const now = new Date().toISOString();
+    const messageId = randomUUID();
+
+    await turso.execute({
+      sql: 'INSERT INTO messages (id, conversation_id, sender_id, content, message_type, read, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
+      args: [messageId, conversation_id, sender_id, content, message_type || 'text', 0, now],
+    });
+
+    await turso.execute({
+      sql: 'UPDATE conversations SET updated_at = ?1 WHERE id = ?2',
+      args: [now, conversation_id],
+    });
+
+    res.json({
+      id: messageId,
+      conversation_id,
+      sender_id,
+      content,
+      message_type: message_type || 'text',
+      read: 0,
+      created_at: now,
+    });
+  } catch (error) {
+    console.error('[API] Send message error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Marcar mensaje como leído
+app.put('/api/messages/:messageId/read', async (req, res) => {
+  try {
+    await turso.execute({
+      sql: 'UPDATE messages SET read = 1 WHERE id = ?1',
+      args: [req.params.messageId],
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Mark message read error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Marcar conversación como leída
+app.put('/api/conversations/:conversationId/read', async (req, res) => {
+  try {
+    await turso.execute({
+      sql: 'UPDATE messages SET read = 1 WHERE conversation_id = ?1',
+      args: [req.params.conversationId],
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Mark conversation read error:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -1173,6 +1173,145 @@ app.post('/api/contacts/open-chat', (req, res) => {
     }
 });
 
+// ============ CONVERSATIONS ============
+
+// Obtener conversaciones de un usuario
+app.get('/api/conversations/:userId', (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const conversations = db
+            .prepare('SELECT * FROM conversations WHERE user_id_1 = ? OR user_id_2 = ? ORDER BY updated_at DESC')
+            .all(userId, userId);
+
+        const enriched = conversations.map((conv) => {
+            const otherUserId = conv.user_id_1 === userId ? conv.user_id_2 : conv.user_id_1;
+            const otherUser = db
+                .prepare('SELECT id, username, profile_pic FROM users WHERE id = ?')
+                .get(otherUserId);
+
+            const messages = db
+                .prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC')
+                .all(conv.id);
+
+            const unreadCount = messages.filter((m) => !m.read && m.sender_id !== userId).length;
+
+            return {
+                id: conv.id,
+                user_id_1: conv.user_id_1,
+                user_id_2: conv.user_id_2,
+                created_at: conv.created_at,
+                updated_at: conv.updated_at,
+                other_user: otherUser || null,
+                last_message: messages[messages.length - 1] || null,
+                unread_count: unreadCount,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener mensajes de una conversación
+app.get('/api/conversations/:conversationId/messages', (req, res) => {
+    try {
+        const messages = db
+            .prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC')
+            .all(req.params.conversationId);
+
+        const enriched = messages.map((msg) => {
+            const sender = db
+                .prepare('SELECT id, username, profile_pic FROM users WHERE id = ?')
+                .get(msg.sender_id);
+
+            return {
+                ...msg,
+                sender: sender || null,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ MESSAGES ============
+
+// Enviar mensaje
+app.post('/api/messages', (req, res) => {
+    try {
+        const { conversation_id, sender_id, content, message_type } = req.body;
+
+        if (!conversation_id || !sender_id || !content) {
+            return res.status(400).json({ error: 'conversation_id, sender_id y content requeridos' });
+        }
+
+        const conversation = db
+            .prepare('SELECT * FROM conversations WHERE id = ?')
+            .get(conversation_id);
+
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+
+        if (conversation.user_id_1 !== sender_id && conversation.user_id_2 !== sender_id) {
+            return res.status(403).json({ error: 'No tienes permiso para enviar mensajes en esta conversación' });
+        }
+
+        const otherUserId = conversation.user_id_1 === sender_id ? conversation.user_id_2 : conversation.user_id_1;
+        const contact = db
+            .prepare('SELECT * FROM contacts WHERE user_id = ? AND contact_id = ?')
+            .get(sender_id, otherUserId);
+
+        if (!contact || contact.status !== 'aceptado') {
+            return res.status(403).json({ error: 'No puedes enviar mensajes a este usuario' });
+        }
+
+        const now = new Date().toISOString();
+        const messageId = randomUUID();
+
+        db.prepare(
+            'INSERT INTO messages (id, conversation_id, sender_id, content, message_type, read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)' 
+        ).run(messageId, conversation_id, sender_id, content, message_type || 'text', 0, now);
+
+        db.prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(now, conversation_id);
+
+        res.json({
+            id: messageId,
+            conversation_id,
+            sender_id,
+            content,
+            message_type: message_type || 'text',
+            read: 0,
+            created_at: now,
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Marcar mensaje como leído
+app.put('/api/messages/:messageId/read', (req, res) => {
+    try {
+        db.prepare('UPDATE messages SET read = 1 WHERE id = ?').run(req.params.messageId);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Marcar conversación como leída
+app.put('/api/conversations/:conversationId/read', (req, res) => {
+    try {
+        db.prepare('UPDATE messages SET read = 1 WHERE conversation_id = ?').run(req.params.conversationId);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ============ STATS ============
 
 app.get('/api/stats/:userId', (req, res) => {
