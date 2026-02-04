@@ -12,6 +12,7 @@ export const Chats: React.FC<ChatsPageProps> = ({ userId }) => {
     const { conversations, getConversations } = useChat();
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isMobile, setIsMobile] = useState(false);
     const currentChatTargetUserId = useStore((state) => state.currentChatTargetUserId);
     const setCurrentChatTargetUserId = useStore((state) => state.setCurrentChatTargetUserId);
 
@@ -29,6 +30,19 @@ export const Chats: React.FC<ChatsPageProps> = ({ userId }) => {
         return () => clearInterval(interval);
     }, [userId]);
 
+    // Detectar si es vista móvil para cambiar el layout (lista -> detalle full-screen)
+    useEffect(() => {
+        const updateIsMobile = () => {
+            if (typeof window !== 'undefined') {
+                setIsMobile(window.innerWidth <= 768);
+            }
+        };
+
+        updateIsMobile();
+        window.addEventListener('resize', updateIsMobile);
+        return () => window.removeEventListener('resize', updateIsMobile);
+    }, []);
+
     // Cuando hay un objetivo de chat (desde Contactos), seleccionar automáticamente
     useEffect(() => {
         if (!currentChatTargetUserId || conversations.length === 0) return;
@@ -45,6 +59,22 @@ export const Chats: React.FC<ChatsPageProps> = ({ userId }) => {
     }, [currentChatTargetUserId, conversations]);
 
     const selectedConversation = conversations.find((c) => c.id === selectedConversationId);
+
+    // En móvil: si hay conversación seleccionada, mostrar sólo la pantalla de chat a pantalla completa
+    if (isMobile && selectedConversation) {
+        return (
+            <div className="chats-page">
+                <div className="chat-main">
+                    <ChatWindow
+                        conversationId={selectedConversation.id}
+                        userId={userId}
+                        otherUsername={selectedConversation.other_user?.username || 'Usuario'}
+                        onBack={() => setSelectedConversationId(null)}
+                    />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="chats-page">

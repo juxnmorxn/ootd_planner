@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import './ChatWindow.css';
 
@@ -6,9 +7,10 @@ interface ChatWindowProps {
     conversationId: string;
     userId: string;
     otherUsername: string;
+    onBack?: () => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, otherUsername }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, otherUsername, onBack }) => {
     const { currentMessages, getMessages, sendMessage, markConversationAsRead } = useChat();
     const [messageContent, setMessageContent] = useState('');
     const [loading, setLoading] = useState(false);
@@ -51,6 +53,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
     return (
         <div className="chat-window">
             <div className="chat-header">
+                {onBack && (
+                    <button
+                        type="button"
+                        className="chat-header-back"
+                        onClick={onBack}
+                    >
+                        <ArrowLeft size={20} />
+                    </button>
+                )}
                 <h2>{otherUsername}</h2>
             </div>
 
