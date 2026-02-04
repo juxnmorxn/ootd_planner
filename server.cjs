@@ -210,6 +210,82 @@ db.exec(`
 // Ejecutar migración de outfits por si el esquema era antiguo (y asegurar índice)
 migrateOutfitsTable();
 
+// ============ CHAT TABLES ============
+
+// Tabla de contactos/amigos
+db.exec(`
+    CREATE TABLE IF NOT EXISTS contacts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        contact_id TEXT NOT NULL,
+        status TEXT DEFAULT 'pendiente',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (contact_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(user_id, contact_id)
+    )
+`);
+
+db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_contacts_user 
+    ON contacts(user_id)
+`);
+
+db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_contacts_status 
+    ON contacts(status)
+`);
+
+// Tabla de conversaciones privadas
+db.exec(`
+    CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        user_id_1 TEXT NOT NULL,
+        user_id_2 TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id_1) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id_2) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(user_id_1, user_id_2)
+    )
+`);
+
+db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_conversations_users 
+    ON conversations(user_id_1, user_id_2)
+`);
+
+// Tabla de mensajes
+db.exec(`
+    CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        message_type TEXT DEFAULT 'text',
+        read INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+`);
+
+db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation 
+    ON messages(conversation_id)
+`);
+
+db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_messages_sender 
+    ON messages(sender_id)
+`);
+
+db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_messages_created 
+    ON messages(created_at DESC)
+`);
+
 // ============ AUTH & USERS ============
 
 // Listado básico de usuarios (también usado como health-check desde el frontend)
@@ -807,6 +883,238 @@ app.delete('/api/outfits/:id', (req, res) => {
     try {
         const stmt = db.prepare('DELETE FROM outfits WHERE id = ?');
         stmt.run(req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ CONTACTS ============
+
+// Buscar usuarios por username/email (búsqueda parcial, predictiva)
+app.get('/api/contacts/search/:query', (req, res) => {
+    try {
+        const search = String(req.params.query || '').toLowerCase();
+        const excludeUserId = req.query.excludeUserId ? String(req.query.excludeUserId) : null;
+
+        const stmt = db.prepare('SELECT id, username, email, role, profile_pic, custom_subcategories, created_at, updated_at FROM users');
+        const allUsers = stmt.all();
+
+        const matches = allUsers.filter((u) => {
+            if (excludeUserId && u.id === excludeUserId) return false;
+            const username = (u.username || '').toLowerCase();
+            const email = (u.email || '').toLowerCase();
+            return username.includes(search) || email.includes(search);
+        });
+
+        if (!matches.length) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        res.json(matches);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Enviar solicitud de amistad
+app.post('/api/contacts/request', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        if (user_id === contact_id) {
+            return res.status(400).json({ error: 'No puedes agregarte a ti mismo' });
+        }
+
+        const user = db.prepare('SELECT id FROM users WHERE id = ?').get(user_id);
+        const contactUser = db.prepare('SELECT id FROM users WHERE id = ?').get(contact_id);
+
+        if (!user || !contactUser) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        const existing = db.prepare('SELECT id, status FROM contacts WHERE user_id = ? AND contact_id = ?').get(user_id, contact_id);
+        if (existing) {
+            return res.status(400).json({ error: 'Ya existe una solicitud con este usuario' });
+        }
+
+        const id = randomUUID();
+        const now = new Date().toISOString();
+        db.prepare('INSERT INTO contacts (id, user_id, contact_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+            .run(id, user_id, contact_id, 'pendiente', now, now);
+
+        res.json({ id, user_id, contact_id, status: 'pendiente', created_at: now, updated_at: now });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener solicitudes pendientes recibidas por un usuario
+app.get('/api/contacts/pending/:userId', (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const rows = db
+            .prepare('SELECT * FROM contacts WHERE contact_id = ? AND status = ? ORDER BY created_at DESC')
+            .all(userId, 'pendiente');
+
+        const enriched = rows.map((row) => {
+            const fromUser = db.prepare('SELECT id, username, profile_pic FROM users WHERE id = ?').get(row.user_id);
+            return {
+                id: row.id,
+                user_id: row.user_id,
+                contact_id: row.contact_id,
+                status: row.status,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+                contact_user: fromUser || null,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener contactos aceptados de un usuario
+app.get('/api/contacts/accepted/:userId', (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const rows = db
+            .prepare('SELECT * FROM contacts WHERE user_id = ? AND status = ? ORDER BY created_at DESC')
+            .all(userId, 'aceptado');
+
+        const enriched = rows.map((row) => {
+            const contactUser = db.prepare('SELECT id, username, profile_pic FROM users WHERE id = ?').get(row.contact_id);
+            return {
+                id: row.id,
+                user_id: row.user_id,
+                contact_id: row.contact_id,
+                status: row.status,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+                contact_user: contactUser || null,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Aceptar solicitud de amistad
+app.post('/api/contacts/accept', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        const now = new Date().toISOString();
+
+        // La solicitud pendiente es desde contact_id -> user_id
+        const pending = db
+            .prepare('SELECT * FROM contacts WHERE user_id = ? AND contact_id = ?')
+            .get(contact_id, user_id);
+
+        if (!pending || pending.status !== 'pendiente') {
+            return res.status(404).json({ error: 'Solicitud no encontrada o no pendiente' });
+        }
+
+        db.prepare('UPDATE contacts SET status = ?, updated_at = ? WHERE user_id = ? AND contact_id = ?')
+            .run('aceptado', now, contact_id, user_id);
+
+        const existingInverse = db
+            .prepare('SELECT * FROM contacts WHERE user_id = ? AND contact_id = ?')
+            .get(user_id, contact_id);
+
+        if (!existingInverse) {
+            const id = randomUUID();
+            db.prepare('INSERT INTO contacts (id, user_id, contact_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+                .run(id, user_id, contact_id, 'aceptado', now, now);
+        } else {
+            db.prepare('UPDATE contacts SET status = ?, updated_at = ? WHERE user_id = ? AND contact_id = ?')
+                .run('aceptado', now, user_id, contact_id);
+        }
+
+        // Crear conversación si no existe
+        const existingConversation = db
+            .prepare(
+                'SELECT * FROM conversations WHERE (user_id_1 = ? AND user_id_2 = ?) OR (user_id_1 = ? AND user_id_2 = ?)' 
+            )
+            .get(user_id, contact_id, contact_id, user_id);
+
+        if (!existingConversation) {
+            const convId = randomUUID();
+            db.prepare('INSERT INTO conversations (id, user_id_1, user_id_2, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+                .run(convId, user_id, contact_id, now, now);
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rechazar solicitud de amistad
+app.post('/api/contacts/reject', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        const now = new Date().toISOString();
+        db.prepare('UPDATE contacts SET status = ?, updated_at = ? WHERE user_id = ? AND contact_id = ?')
+            .run('rechazado', now, contact_id, user_id);
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Bloquear contacto
+app.post('/api/contacts/block', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        const now = new Date().toISOString();
+        const existing = db
+            .prepare('SELECT * FROM contacts WHERE user_id = ? AND contact_id = ?')
+            .get(user_id, contact_id);
+
+        if (existing) {
+            db.prepare('UPDATE contacts SET status = ?, updated_at = ? WHERE user_id = ? AND contact_id = ?')
+                .run('bloqueado', now, user_id, contact_id);
+        } else {
+            const id = randomUUID();
+            db.prepare('INSERT INTO contacts (id, user_id, contact_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+                .run(id, user_id, contact_id, 'bloqueado', now, now);
+        }
+
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Eliminar contacto
+app.delete('/api/contacts/:user_id/:contact_id', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.params;
+        db.prepare('DELETE FROM contacts WHERE user_id = ? AND contact_id = ?').run(user_id, contact_id);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });

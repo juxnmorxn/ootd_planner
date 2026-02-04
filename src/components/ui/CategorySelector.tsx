@@ -13,20 +13,26 @@ export function CategorySelector({ selected, onSelect, className }: CategorySele
 
     return (
         <div className={cn('flex gap-2 overflow-x-auto pb-1.5 scrollbar-hide', className)}>
-            {categories.map((cat) => (
-                <button
-                    key={cat.key}
-                    onClick={() => onSelect(cat.key)}
-                    className={cn(
-                        'flex-shrink-0 px-3 py-1.5 rounded-full text-[15px] font-semibold transition-all uppercase tracking-wider',
-                        selected === cat.key
-                            ? 'bg-black text-white'
-                            : 'bg-transparent text-slate-400 hover:text-slate-600'
-                    )}
-                >
-                    {cat.label}
-                </button>
-            ))}
+            {categories.map((cat) => {
+                const isSelected = selected === cat.key;
+
+                return (
+                    <button
+                        key={cat.key}
+                        onClick={() => onSelect(cat.key)}
+                        className={cn(
+                            'flex-shrink-0 px-3 py-1.5 rounded-full text-[15px] font-semibold transition-all uppercase tracking-wider',
+                            isSelected ? 'shadow-sm' : 'hover:opacity-80'
+                        )}
+                        style={{
+                            backgroundColor: isSelected ? 'var(--btn-primary-bg)' : 'transparent',
+                            color: isSelected ? 'var(--btn-primary-text)' : 'var(--text-tertiary)',
+                        }}
+                    >
+                        {cat.label}
+                    </button>
+                );
+            })}
         </div>
     );
 }

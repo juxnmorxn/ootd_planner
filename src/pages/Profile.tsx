@@ -466,10 +466,10 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
 
                 {/* Change Password */}
                 <div
-                    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6"
+                    className="bg-white rounded-2xl shadow-sm border p-6"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
                 >
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                    <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
                         <Lock className="w-5 h-5 inline mr-2" />
                         Seguridad
                     </h3>
@@ -540,15 +540,17 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
 
                 {/* Synchronization & Storage */}
                 <div
-                    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6"
+                    className="bg-white rounded-2xl shadow-sm border p-6"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
                 >
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Sincronización</h3>
+                    <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+                        Sincronización
+                    </h3>
                     <div className="space-y-4">
                         {/* Last Sync Info */}
                         <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'var(--border-primary)' }}>
                             <div className="flex items-center space-x-2">
-                                <Clock className="w-4 h-4 text-slate-500" />
+                                <Clock className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
                                 <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Última sincronización</span>
                             </div>
                             <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -561,7 +563,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                         {/* Session Info */}
                         <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'var(--border-primary)' }}>
                             <div className="flex items-center space-x-2">
-                                <Clock className="w-4 h-4 text-slate-500" />
+                                <Clock className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
                                 <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Sesión válida por</span>
                             </div>
                             <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>

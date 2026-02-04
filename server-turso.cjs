@@ -71,6 +71,82 @@ async function initDb() {
   await migrateOutfitsTable();
   await migrateGarmentsTable();
 
+  // ============ CHAT TABLES ============
+
+  // Tabla de contactos/amigos
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS contacts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      contact_id TEXT NOT NULL,
+      status TEXT DEFAULT 'pendiente',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (contact_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, contact_id)
+    );
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_contacts_user
+    ON contacts(user_id);
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_contacts_status
+    ON contacts(status);
+  `);
+
+  // Tabla de conversaciones privadas
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      user_id_1 TEXT NOT NULL,
+      user_id_2 TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id_1) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id_2) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id_1, user_id_2)
+    );
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_conversations_users
+    ON conversations(user_id_1, user_id_2);
+  `);
+
+  // Tabla de mensajes
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL,
+      sender_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      message_type TEXT DEFAULT 'text',
+      read INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+      FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation
+    ON messages(conversation_id);
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_messages_sender
+    ON messages(sender_id);
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_messages_created
+    ON messages(created_at DESC);
+  `);
+
   console.log('[Turso] Schema ensured');
 }
 
@@ -177,6 +253,16 @@ async function getUserByEmailOrUsername(identifier) {
   const { rows } = await turso.execute({
     sql: 'SELECT * FROM users WHERE username = ?1 OR email = ?1',
     args: [identifier],
+  });
+  return rows[0] || null;
+}
+
+async function getConversationByUsers(userId1, userId2) {
+  const { rows } = await turso.execute({
+    sql: `SELECT * FROM conversations 
+           WHERE (user_id_1 = ?1 AND user_id_2 = ?2) 
+              OR (user_id_1 = ?2 AND user_id_2 = ?1)` ,
+    args: [userId1, userId2],
   });
   return rows[0] || null;
 }
@@ -299,6 +385,276 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (error) {
     console.error('[API] Login error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ CONTACTS ============
+
+// Buscar usuarios por username/email (búsqueda parcial, predictiva)
+app.get('/api/contacts/search/:query', async (req, res) => {
+  try {
+    const search = String(req.params.query || '').toLowerCase();
+    const excludeUserId = req.query.excludeUserId ? String(req.query.excludeUserId) : null;
+
+    const { rows } = await turso.execute('SELECT id, username, email, role, profile_pic, custom_subcategories, created_at, updated_at FROM users');
+
+    const matches = rows.filter((u) => {
+      if (excludeUserId && u.id === excludeUserId) return false;
+      const username = (u.username || '').toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      return username.includes(search) || email.includes(search);
+    });
+
+    if (!matches.length) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json(matches);
+  } catch (error) {
+    console.error('[API] Contacts search error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Enviar solicitud de amistad
+app.post('/api/contacts/request', async (req, res) => {
+  try {
+    const { user_id, contact_id } = req.body;
+
+    if (!user_id || !contact_id) {
+      return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+    }
+
+    if (user_id === contact_id) {
+      return res.status(400).json({ error: 'No puedes agregarte a ti mismo' });
+    }
+
+    const user = await getUserById(user_id);
+    const contactUser = await getUserById(contact_id);
+    if (!user || !contactUser) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const { rows: existingRows } = await turso.execute({
+      sql: 'SELECT id, status FROM contacts WHERE user_id = ?1 AND contact_id = ?2',
+      args: [user_id, contact_id],
+    });
+    if (existingRows.length > 0) {
+      return res.status(400).json({ error: 'Ya existe una solicitud con este usuario' });
+    }
+
+    const id = randomUUID();
+    const now = new Date().toISOString();
+
+    await turso.execute({
+      sql: 'INSERT INTO contacts (id, user_id, contact_id, status, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
+      args: [id, user_id, contact_id, 'pendiente', now, now],
+    });
+
+    res.json({ id, user_id, contact_id, status: 'pendiente', created_at: now, updated_at: now });
+  } catch (error) {
+    console.error('[API] Contacts request error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtener solicitudes pendientes recibidas por un usuario
+app.get('/api/contacts/pending/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { rows } = await turso.execute({
+      sql: 'SELECT * FROM contacts WHERE contact_id = ?1 AND status = ?2 ORDER BY created_at DESC',
+      args: [userId, 'pendiente'],
+    });
+
+    const enriched = [];
+    for (const row of rows) {
+      const fromUser = await getUserById(row.user_id);
+      enriched.push({
+        id: row.id,
+        user_id: row.user_id,
+        contact_id: row.contact_id,
+        status: row.status,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        contact_user: fromUser
+          ? { id: fromUser.id, username: fromUser.username, profile_pic: fromUser.profile_pic }
+          : null,
+      });
+    }
+
+    res.json(enriched);
+  } catch (error) {
+    console.error('[API] Contacts pending error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtener contactos aceptados de un usuario
+app.get('/api/contacts/accepted/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { rows } = await turso.execute({
+      sql: 'SELECT * FROM contacts WHERE user_id = ?1 AND status = ?2 ORDER BY created_at DESC',
+      args: [userId, 'aceptado'],
+    });
+
+    const enriched = [];
+    for (const row of rows) {
+      const contactUser = await getUserById(row.contact_id);
+      enriched.push({
+        id: row.id,
+        user_id: row.user_id,
+        contact_id: row.contact_id,
+        status: row.status,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        contact_user: contactUser
+          ? { id: contactUser.id, username: contactUser.username, profile_pic: contactUser.profile_pic }
+          : null,
+      });
+    }
+
+    res.json(enriched);
+  } catch (error) {
+    console.error('[API] Contacts accepted error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Aceptar solicitud de amistad
+app.post('/api/contacts/accept', async (req, res) => {
+  try {
+    const { user_id, contact_id } = req.body;
+
+    if (!user_id || !contact_id) {
+      return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+    }
+
+    const now = new Date().toISOString();
+
+    const { rows: pendingRows } = await turso.execute({
+      sql: 'SELECT * FROM contacts WHERE user_id = ?1 AND contact_id = ?2',
+      args: [contact_id, user_id],
+    });
+
+    const pending = pendingRows[0];
+    if (!pending || pending.status !== 'pendiente') {
+      return res.status(404).json({ error: 'Solicitud no encontrada o no pendiente' });
+    }
+
+    await turso.execute({
+      sql: 'UPDATE contacts SET status = ?1, updated_at = ?2 WHERE user_id = ?3 AND contact_id = ?4',
+      args: ['aceptado', now, contact_id, user_id],
+    });
+
+    const { rows: inverseRows } = await turso.execute({
+      sql: 'SELECT * FROM contacts WHERE user_id = ?1 AND contact_id = ?2',
+      args: [user_id, contact_id],
+    });
+
+    if (inverseRows.length === 0) {
+      const id = randomUUID();
+      await turso.execute({
+        sql: 'INSERT INTO contacts (id, user_id, contact_id, status, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
+        args: [id, user_id, contact_id, 'aceptado', now, now],
+      });
+    } else {
+      await turso.execute({
+        sql: 'UPDATE contacts SET status = ?1, updated_at = ?2 WHERE user_id = ?3 AND contact_id = ?4',
+        args: ['aceptado', now, user_id, contact_id],
+      });
+    }
+
+    const existingConversation = await getConversationByUsers(user_id, contact_id);
+    if (!existingConversation) {
+      const convId = randomUUID();
+      await turso.execute({
+        sql: 'INSERT INTO conversations (id, user_id_1, user_id_2, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)',
+        args: [convId, user_id, contact_id, now, now],
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Contacts accept error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Rechazar solicitud de amistad
+app.post('/api/contacts/reject', async (req, res) => {
+  try {
+    const { user_id, contact_id } = req.body;
+
+    if (!user_id || !contact_id) {
+      return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+    }
+
+    const now = new Date().toISOString();
+
+    await turso.execute({
+      sql: 'UPDATE contacts SET status = ?1, updated_at = ?2 WHERE user_id = ?3 AND contact_id = ?4',
+      args: ['rechazado', now, contact_id, user_id],
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Contacts reject error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bloquear contacto
+app.post('/api/contacts/block', async (req, res) => {
+  try {
+    const { user_id, contact_id } = req.body;
+
+    if (!user_id || !contact_id) {
+      return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+    }
+
+    const now = new Date().toISOString();
+
+    const { rows } = await turso.execute({
+      sql: 'SELECT * FROM contacts WHERE user_id = ?1 AND contact_id = ?2',
+      args: [user_id, contact_id],
+    });
+
+    if (rows.length > 0) {
+      await turso.execute({
+        sql: 'UPDATE contacts SET status = ?1, updated_at = ?2 WHERE user_id = ?3 AND contact_id = ?4',
+        args: ['bloqueado', now, user_id, contact_id],
+      });
+    } else {
+      const id = randomUUID();
+      await turso.execute({
+        sql: 'INSERT INTO contacts (id, user_id, contact_id, status, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
+        args: [id, user_id, contact_id, 'bloqueado', now, now],
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Contacts block error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Eliminar contacto
+app.delete('/api/contacts/:user_id/:contact_id', async (req, res) => {
+  try {
+    const { user_id, contact_id } = req.params;
+
+    await turso.execute({
+      sql: 'DELETE FROM contacts WHERE user_id = ?1 AND contact_id = ?2',
+      args: [user_id, contact_id],
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Contacts delete error:', error);
     res.status(500).json({ error: error.message });
   }
 });
