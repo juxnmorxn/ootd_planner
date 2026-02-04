@@ -35,8 +35,14 @@ export function DailyOutfitStage({ selectedDate, onEditOutfit }: DailyOutfitStag
 
     if (loading) {
         return (
-            <div className="flex-1 flex items-center justify-center bg-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
+            <div
+                className="flex-1 flex items-center justify-center"
+                style={{ backgroundColor: 'var(--bg-secondary)' }}
+            >
+                <div
+                    className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent"
+                    style={{ borderColor: 'var(--accent-primary)', borderTopColor: 'transparent' }}
+                ></div>
             </div>
         );
     }
@@ -64,15 +70,23 @@ function EmptyStatePlaceholder({ onCreateOutfit }: { onCreateOutfit: () => void 
     return (
         <button
             onClick={onCreateOutfit}
-            className="w-full min-h-[400px] flex items-center justify-center bg-white touch-manipulation group"
+            className="w-full min-h-[400px] flex items-center justify-center touch-manipulation group"
+            style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
         >
             {/* CTA */}
             <div className="text-center px-8 py-12">
-                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm group-hover:shadow-md transition-shadow border-2 border-slate-100">
-                    <Plus className="w-10 h-10 text-slate-400 group-hover:text-black transition-colors" />
+                <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm group-hover:shadow-md transition-shadow border-2"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-primary)' }}
+                >
+                    <Plus className="w-10 h-10" style={{ color: 'var(--text-tertiary)' }} />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">Sin outfit planeado</h3>
-                <p className="text-base text-slate-500">Toca para armar tu look del día</p>
+                <h3 className="text-2xl font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+                    Sin outfit planeado
+                </h3>
+                <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+                    Toca para armar tu look del día
+                </p>
             </div>
         </button>
     );
@@ -199,11 +213,15 @@ function OutfitDisplay({
     };
 
     return (
-        <div className="flex-1 flex items-center justify-center bg-white relative overflow-hidden touch-none">
+        <div
+            className="flex-1 flex items-center justify-center relative overflow-hidden touch-none"
+            style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+        >
             {/* Edit Button - Top Right */}
             <button
                 onClick={onEdit}
-                className="absolute top-3 right-3 z-20 bg-black text-white pl-3 pr-4 py-2 rounded-full text-xs font-medium hover:bg-slate-800 transition-all shadow-lg flex items-center gap-1.5"
+                className="absolute top-3 right-3 z-20 pl-3 pr-4 py-2 rounded-full text-xs font-medium transition-all shadow-lg flex items-center gap-1.5"
+                style={{ backgroundColor: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)' }}
             >
                 <Edit3 className="w-3.5 h-3.5" />
                 Editar

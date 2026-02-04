@@ -10,6 +10,7 @@ import { Profile } from './pages/Profile';
 import { BottomNav } from './components/layout/BottomNav';
 import { Chats } from './pages/Chats';
 import { Contacts } from './pages/Contacts';
+import { Fondos } from './pages/Fondos';
 
 import { AdminUsers } from './pages/AdminUsers';
 
@@ -38,6 +39,7 @@ function App() {
     'admin-users',
     'contacts',
     'chats',
+    'fondos',
   ];
   const safeView = validViews.includes(view) ? view : 'auth';
 
@@ -195,10 +197,13 @@ function App() {
 
   if (!hasHydrated) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+      >
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-black border-t-transparent mb-4"></div>
-          <p className="text-slate-900 text-xl font-semibold">Cargando...</p>
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-t-transparent mb-4" style={{ borderColor: 'var(--accent-primary)', borderTopColor: 'transparent' }}></div>
+          <p className="text-xl font-semibold">Cargando...</p>
         </div>
       </div>
     );
@@ -214,7 +219,10 @@ function App() {
   const navActive = (safeView === 'calendar' ? 'calendar' : safeView === 'closet' ? 'closet' : 'calendar') as 'calendar' | 'closet';
 
   return (
-    <div className="relative min-h-screen flex flex-col">
+    <div
+      className="relative min-h-screen flex flex-col"
+      style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+    >
       <div className="flex-1 flex flex-col">
         {safeView === 'calendar' && (
           <CalendarHome
@@ -247,6 +255,10 @@ function App() {
           <Chats
             userId={currentUser.id}
           />
+        )}
+
+        {safeView === 'fondos' && (
+          <Fondos />
         )}
       </div>
       {showBottomNav && (

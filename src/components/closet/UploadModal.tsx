@@ -102,17 +102,23 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[calc(100vh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto flex flex-col safe-area-inset-top safe-area-inset-bottom">
+            <div
+                className="rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[calc(100vh-2rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto flex flex-col safe-area-inset-top safe-area-inset-bottom border"
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+            >
                 {/* Header */}
-                <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 flex-shrink-0">
-                    <h2 className="text-xl font-bold text-slate-900">
+                <div
+                    className="sticky top-0 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10 flex-shrink-0 border-b"
+                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+                >
+                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
                         Agregar {categoryInfo.label}
                     </h2>
                     <button
                         onClick={onClose}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
                     >
-                        <X className="w-5 h-5 text-slate-500" />
+                        <X className="w-5 h-5" style={{ color: 'var(--text-tertiary)' }} />
                     </button>
                 </div>
 
@@ -132,24 +138,34 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                                 {/* AI Toggle - REMBG (Muy rápido) */}
                                 <div
                                     onClick={() => setUseAI(!useAI)}
-                                    className={`
-                    flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer
-                    ${useAI ? 'border-black bg-slate-50' : 'border-slate-100'}
-                  `}
+                                    className="flex items-center justify-between p-4 rounded-xl border-2 transition-all cursor-pointer"
+                                    style={{
+                                        borderColor: useAI ? 'var(--accent-primary)' : 'var(--border-primary)',
+                                        backgroundColor: useAI ? 'var(--bg-primary)' : 'var(--bg-secondary)',
+                                    }}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-lg ${useAI ? 'bg-black text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                        <div
+                                            className="p-2 rounded-lg"
+                                            style={{
+                                                backgroundColor: useAI ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                                                color: useAI ? 'var(--btn-primary-text)' : 'var(--text-tertiary)',
+                                            }}
+                                        >
                                             <Sparkles className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="font-semibold text-slate-900">Eliminar fondo con IA</p>
-                                            <p className="text-xs text-slate-500">
+                                            <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Eliminar fondo con IA</p>
+                                            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                                                 {useAI ? '⚡ Activado (~1-2s)' : 'Desactivado'}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${useAI ? 'border-black' : 'border-slate-300'}`}>
-                                        {useAI && <div className="w-3 h-3 bg-black rounded-full" />}
+                                    <div
+                                        className="w-6 h-6 rounded-full border-2 flex items-center justify-center"
+                                        style={{ borderColor: useAI ? 'var(--accent-primary)' : 'var(--border-primary)' }}
+                                    >
+                                        {useAI && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: 'var(--accent-primary)' }} />}
                                     </div>
                                 </div>
 
@@ -157,22 +173,30 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={loading}
-                                    className="w-full aspect-square border-2 border-dashed border-slate-300 rounded-2xl hover:border-black transition-colors flex flex-col items-center justify-center gap-3 bg-slate-50"
+                                    className="w-full aspect-square border-2 border-dashed rounded-2xl transition-colors flex flex-col items-center justify-center gap-3"
+                                    style={{
+                                        borderColor: 'var(--border-primary)',
+                                        backgroundColor: 'var(--bg-primary)',
+                                    }}
                                 >
                                     {loading ? (
                                         <>
-                                            <Loader className="w-12 h-12 text-black animate-spin" />
-                                            <p className="text-sm text-slate-600 font-medium">{loadingText}</p>
-                                            {useAI && <p className="text-xs text-slate-400">Usando REMBG (servidor Python)</p>}
+                                            <Loader className="w-12 h-12 animate-spin" style={{ color: 'var(--accent-primary)' }} />
+                                            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{loadingText}</p>
+                                            {useAI && (
+                                                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                                    Usando REMBG (servidor Python)
+                                                </p>
+                                            )}
                                         </>
                                     ) : (
                                         <>
-                                            <Upload className="w-12 h-12 text-slate-400" />
+                                            <Upload className="w-12 h-12" style={{ color: 'var(--text-tertiary)' }} />
                                             <div className="text-center px-4">
-                                                <p className="text-sm font-medium text-slate-700">
+                                                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                                                     Seleccionar de galería
                                                 </p>
-                                                <p className="text-xs text-slate-500 mt-1">
+                                                <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
                                                     PNG, JPG hasta 10MB
                                                 </p>
                                             </div>
@@ -189,7 +213,11 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                                         }
                                     }}
                                     disabled={loading}
-                                    className="w-full px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                                    className="w-full px-4 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                                    style={{
+                                        backgroundColor: 'var(--bg-primary)',
+                                        color: 'var(--text-secondary)',
+                                    }}
                                 >
                                     <Camera className="w-5 h-5" />
                                     Tomar Foto
@@ -201,7 +229,9 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                             {/* Image Preview */}
                             <div className="mb-6">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Vista Previa</span>
+                                    <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                                        Vista Previa
+                                    </span>
                                     {useAI && (
                                         <span className="flex items-center gap-1 text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">
                                             <Sparkles className="w-3 h-3" /> Fondo eliminado
@@ -210,10 +240,10 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                                 </div>
 
                                 <div
-                                    className="w-40 h-40 bg-slate-100 rounded-2xl flex items-center justify-center relative overflow-hidden ring-1 ring-slate-100"
+                                    className="w-40 h-40 rounded-2xl flex items-center justify-center relative overflow-hidden ring-1"
                                     style={{
-                                        backgroundImage: 'repeating-conic-gradient(#f8fafc 0% 25%, #e2e8f0 0% 50%)',
-                                        backgroundSize: '20px 20px',
+                                        backgroundColor: 'var(--bg-primary)',
+                                        borderColor: 'var(--border-primary)',
                                     }}
                                 >
                                     <img
@@ -227,7 +257,8 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                                         setImageData(null);
                                         setSelectedSubCategory('');
                                     }}
-                                    className="mt-3 text-sm text-slate-600 hover:text-black transition-colors w-full text-center py-2 hover:bg-slate-50 rounded-lg"
+                                    className="mt-3 text-sm transition-colors w-full text-center py-2 rounded-lg"
+                                    style={{ color: 'var(--text-secondary)' }}
                                 >
                                     ← Intentar con otra foto
                                 </button>
@@ -235,7 +266,7 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
 
                             {/* Sub-category Selection */}
                             <div className="mb-6">
-                                <label className="block text-lg font-bold text-slate-800 mb-3">
+                                <label className="block text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
                                     ¿Qué tipo de {categoryInfo.label.toLowerCase()} es?
                                 </label>
                                 <div className="grid grid-cols-2 gap-2">
@@ -243,13 +274,19 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                                         <button
                                             key={sub}
                                             onClick={() => setSelectedSubCategory(sub)}
-                                            className={`
-                        px-4 py-3 rounded-xl text-base font-semibold transition-all border-2
-                        ${selectedSubCategory === sub
-                                                    ? 'bg-black text-white border-black shadow-lg shadow-black/10'
-                                                    : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
-                                                }
-                      `}
+                                            className="px-4 py-3 rounded-xl text-base font-semibold transition-all border-2"
+                                            style={{
+                                                backgroundColor:
+                                                    selectedSubCategory === sub ? 'var(--btn-primary-bg)' : 'var(--bg-secondary)',
+                                                color:
+                                                    selectedSubCategory === sub
+                                                        ? 'var(--btn-primary-text)'
+                                                        : 'var(--text-secondary)',
+                                                borderColor:
+                                                    selectedSubCategory === sub
+                                                        ? 'var(--btn-primary-bg)'
+                                                        : 'var(--border-primary)',
+                                            }}
                                         >
                                             {sub}
                                         </button>
@@ -261,13 +298,13 @@ export function UploadModal({ category, onClose }: UploadModalProps) {
                             <button
                                 onClick={handleSave}
                                 disabled={!selectedSubCategory || loading}
-                                className={`
-                  w-full py-4 rounded-xl font-bold text-lg transition-all
-                  ${!selectedSubCategory || loading
-                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                        : 'bg-black text-white hover:bg-slate-800 shadow-xl shadow-black/20 active:scale-[0.98]'
-                                    }
-                `}
+                                className="w-full py-4 rounded-xl font-bold text-lg transition-all"
+                                style={{
+                                    backgroundColor: !selectedSubCategory || loading ? 'var(--bg-secondary)' : 'var(--btn-primary-bg)',
+                                    color: !selectedSubCategory || loading ? 'var(--text-tertiary)' : 'var(--btn-primary-text)',
+                                    cursor: !selectedSubCategory || loading ? 'not-allowed' : 'pointer',
+                                    opacity: !selectedSubCategory || loading ? 0.6 : 1,
+                                }}
                             >
                                 {loading ? (
                                     <span className="flex items-center justify-center gap-2">

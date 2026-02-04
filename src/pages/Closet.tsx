@@ -67,11 +67,17 @@ export function Closet() {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-50 overflow-y-auto pb-20 safe-area-inset-bottom">
+        <div
+            className="min-h-screen overflow-y-auto pb-20 safe-area-inset-bottom"
+            style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+        >
             {/* Header with Tabs */}
-            <div className="sticky top-0 z-10 bg-white border-b border-slate-100">
+            <div
+                className="sticky top-0 z-10 border-b"
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+            >
                 <div className="max-w-4xl mx-auto px-4 py-4">
-                    <h1 className="text-2xl font-bold text-slate-900 mb-4">Mi Clóset</h1>
+                    <h1 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Mi Clóset</h1>
                     <TabBar
                         tabs={tabs}
                         activeTab={activeCategory}
@@ -84,15 +90,18 @@ export function Closet() {
             <div className="max-w-4xl mx-auto px-4 py-6">
                 {loading ? (
                     <div className="text-center py-12">
-                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-black border-t-transparent"></div>
-                        <p className="mt-4 text-slate-600">Cargando...</p>
+                        <div
+                            className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-t-transparent"
+                            style={{ borderColor: 'var(--accent-primary)', borderTopColor: 'transparent' }}
+                        ></div>
+                        <p className="mt-4" style={{ color: 'var(--text-secondary)' }}>Cargando...</p>
                     </div>
                 ) : garments.length === 0 ? (
                     <div className="text-center py-12">
                         <div className="text-6xl mb-4">
                             {activeCategory === 'all' ? '👕' : categories.find((c) => c.key === activeCategory)?.icon}
                         </div>
-                        <p className="text-slate-600 mb-6">
+                        <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
                             {activeCategory === 'all'
                                 ? 'No tienes prendas en tu clóset'
                                 : `No tienes prendas en ${categories.find((c) => c.key === activeCategory)?.label}`
@@ -101,14 +110,18 @@ export function Closet() {
                         {activeCategory !== 'all' && (
                             <button
                                 onClick={() => setShowUploadModal(true)}
-                                className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-xl font-medium hover:bg-slate-800 transition-colors"
+                                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-colors"
+                                style={{
+                                    backgroundColor: 'var(--btn-primary-bg)',
+                                    color: 'var(--btn-primary-text)',
+                                }}
                             >
                                 <Plus className="w-5 h-5" />
                                 Agregar Primera Prenda
                             </button>
                         )}
                         {activeCategory === 'all' && (
-                            <p className="text-sm text-slate-500 mt-2">
+                            <p className="text-sm mt-2" style={{ color: 'var(--text-tertiary)' }}>
                                 Selecciona una categoría para agregar prendas
                             </p>
                         )}
@@ -135,7 +148,7 @@ export function Closet() {
             {activeCategory !== 'all' && (
                 <button
                     onClick={() => setShowUploadModal(true)}
-                    className="fixed bottom-24 right-6 w-14 h-14 bg-black text-white rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all flex items-center justify-center z-40"
+                    className="fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all flex items-center justify-center z-40"
                     style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
                 >
                     <Plus className="w-7 h-7" />

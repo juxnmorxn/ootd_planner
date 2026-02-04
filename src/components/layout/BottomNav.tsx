@@ -18,7 +18,15 @@ export function BottomNav({ active, onNavigate }: BottomNavProps) {
     ];
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40" style={{paddingBottom: 'env(safe-area-inset-bottom)', height: 'calc(4rem + env(safe-area-inset-bottom))'}}>
+        <nav
+            className="fixed bottom-0 left-0 right-0 z-40 border-t"
+            style={{
+                paddingBottom: 'env(safe-area-inset-bottom)',
+                height: 'calc(4rem + env(safe-area-inset-bottom))',
+                backgroundColor: 'var(--bg-secondary)',
+                borderColor: 'var(--border-primary)',
+            }}
+        >
             <div className="flex justify-around items-center h-16 max-w-md mx-auto">
                 {items.map((item) => {
                     const Icon = item.icon;
@@ -30,8 +38,9 @@ export function BottomNav({ active, onNavigate }: BottomNavProps) {
                             onClick={() => onNavigate(item.key)}
                             className={cn(
                                 'flex flex-col items-center justify-center gap-1 px-4 py-2 transition-colors touch-manipulation',
-                                isActive ? 'text-black' : 'text-gray-400'
+                                isActive ? 'font-semibold' : 'opacity-70'
                             )}
+                            style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                         >
                             <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
                             <span className="text-xs font-medium">{item.label}</span>

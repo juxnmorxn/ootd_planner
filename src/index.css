@@ -5,6 +5,13 @@
   --color-primary: #000000;
   --color-accent: #0f172a;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Onboarding / Dark theme background tokens */
+  --bg-onboarding-base-1: #081a2b;
+  --bg-onboarding-base-2: #3b2a6e;
+  --bg-onboarding-glow-1: #7c3aed;
+  --bg-onboarding-glow-2: #38bdf8;
+  --bg-onboarding-glow-3: #fb7185;
 }
 
 :root {
@@ -17,13 +24,75 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+
+  /* Light Theme (Default) */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --text-muted: #cbd5e1;
+  --border-primary: #e2e8f0;
+  --border-secondary: #cbd5e1;
+  --input-bg: #ffffff;
+  --input-border: #e2e8f0;
+  --input-text: #1e293b;
+  --input-placeholder: #94a3b8;
+  --btn-primary-bg: #000000;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #1a1a1a;
+  --btn-secondary-bg: #e2e8f0;
+  --btn-secondary-text: #475569;
+  --btn-secondary-hover: #cbd5e1;
+  --btn-ghost-bg: transparent;
+  --btn-ghost-text: #475569;
+  --btn-ghost-hover: #f1f5f9;
+  --accent-primary: #2563eb;
+  --accent-hover: #1d4ed8;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark Theme */
+:root.dark {
+  --bg-primary: #020617;
+  --bg-secondary: #0b1220;
+  --bg-tertiary: #111827;
+  --text-primary: #f9fafb;
+  --text-secondary: #e5e7eb;
+  --text-tertiary: #9ca3af;
+  --text-muted: #6b7280;
+  --border-primary: #1f2937;
+  --border-secondary: #111827;
+  --input-bg: #020617;
+  --input-border: #1f2937;
+  --input-text: #f9fafb;
+  --input-placeholder: #6b7280;
+  --btn-primary-bg: #2563eb;
+  --btn-primary-text: #f9fafb;
+  --btn-primary-hover: #1d4ed8;
+  --btn-secondary-bg: rgba(255, 255, 255, 0.1);
+  --btn-secondary-text: #e5e7eb;
+  --btn-secondary-hover: rgba(255, 255, 255, 0.2);
+  --btn-ghost-bg: transparent;
+  --btn-ghost-text: #e5e7eb;
+  --btn-ghost-hover: rgba(255, 255, 255, 0.1);
+  --accent-primary: #3b82f6;
+  --accent-hover: #2563eb;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -70,6 +139,33 @@ body {
 
   .scale-in-soft {
     animation: scale-in-soft 140ms ease-out;
+  }
+
+  /* Reusable background: similar to the onboarding mock */
+  .bg-onboarding-glow {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(700px 520px at 65% 15%, color-mix(in srgb, var(--bg-onboarding-glow-1) 55%, transparent) 0%, transparent 65%),
+      radial-gradient(640px 520px at 18% 85%, color-mix(in srgb, var(--bg-onboarding-glow-2) 40%, transparent) 0%, transparent 70%),
+      linear-gradient(135deg, var(--bg-onboarding-base-1) 0%, var(--bg-onboarding-base-2) 100%);
+  }
+
+  .bg-onboarding-glow::before {
+    content: '';
+    position: absolute;
+    inset: -30%;
+    background:
+      radial-gradient(closest-side at 50% 55%, color-mix(in srgb, #ffffff 20%, transparent) 0%, transparent 70%),
+      radial-gradient(closest-side at 50% 55%, color-mix(in srgb, var(--bg-onboarding-glow-3) 22%, transparent) 0%, transparent 75%);
+    filter: blur(24px);
+    opacity: 0.85;
+    pointer-events: none;
+  }
+
+  .bg-onboarding-content {
+    position: relative;
+    z-index: 1;
   }
 }
 

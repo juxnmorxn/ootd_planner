@@ -22,7 +22,7 @@ export function TabBar({ tabs, activeTab, onTabChange, className }: TabBarProps)
                         'flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap transition-all text-[15px] font-semibold touch-manipulation',
                         activeTab === tab.key
                             ? 'bg-black text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            : 'bg-transparent text-[color:var(--text-tertiary)] hover:bg-[color:var(--bg-secondary)]'
                     )}
                 >
                     {tab.icon && <span className="text-base">{tab.icon}</span>}

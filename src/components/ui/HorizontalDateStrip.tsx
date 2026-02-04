@@ -89,18 +89,26 @@ export function HorizontalDateStrip({
     }, [selectedDate]);
 
     return (
-        <div className="bg-white border-b border-slate-100 safe-area-inset-top">
+        <div
+            className="safe-area-inset-top border-b"
+            style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+        >
             {/* Compact Month Header */}
             <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-slate-900">
+                    <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
                         {monthNames[month]} {year}
                     </h2>
                     {currentUser?.role === 'admin' && (
                         <button
                             onClick={() => setView('admin-users')}
-                            className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 animate-pulse"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-lg border animate-pulse"
                             title="Panel de Administración"
+                            style={{
+                                backgroundColor: 'var(--accent-primary-bg, rgba(129, 140, 248, 0.1))',
+                                color: 'var(--accent-primary)',
+                                borderColor: 'var(--accent-primary)',
+                            }}
                         >
                             <Shield className="w-3.5 h-3.5" />
                             <span className="text-[10px] font-bold uppercase tracking-tighter">Admin</span>
@@ -110,15 +118,15 @@ export function HorizontalDateStrip({
                 <div className="flex gap-1">
                     <button
                         onClick={onPreviousMonth}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
                     >
-                        <ChevronLeft className="w-4 h-4 text-slate-700" />
+                        <ChevronLeft className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
                     </button>
                     <button
                         onClick={onNextMonth}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
                     >
-                        <ChevronRight className="w-4 h-4 text-slate-700" />
+                        <ChevronRight className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
                     </button>
                 </div>
             </div>
@@ -142,17 +150,20 @@ export function HorizontalDateStrip({
                             onClick={() => onDateSelect(item.dateString)}
                             className={cn(
                                 'flex-shrink-0 flex flex-col items-center justify-center transition-all touch-manipulation',
-                                'w-12 h-14 rounded-xl',
-                                isSelected
-                                    ? 'bg-black text-white shadow-md'
-                                    : 'bg-transparent text-slate-400 hover:text-slate-600'
+                                'w-12 h-14 rounded-xl'
                             )}
                             style={{ scrollSnapAlign: 'center' }}
                         >
-                            <span className={cn('text-[10px] font-medium mb-0.5', isSelected ? 'text-white/80' : 'text-slate-400')}>
+                            <span
+                                className={cn('text-[10px] font-medium mb-0.5')}
+                                style={{ color: isSelected ? 'var(--btn-primary-text)' : 'var(--text-tertiary)' }}
+                            >
                                 {item.dayName}
                             </span>
-                            <span className={cn('text-lg font-bold', isSelected ? 'text-white' : 'text-slate-900')}>
+                            <span
+                                className={cn('text-lg font-bold')}
+                                style={{ color: isSelected ? 'var(--btn-primary-text)' : 'var(--text-primary)' }}
+                            >
                                 {item.dayNumber}
                             </span>
                             {item.isToday && !isSelected && <div className="w-1 h-1 bg-black rounded-full mt-0.5" />}

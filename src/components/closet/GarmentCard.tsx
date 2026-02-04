@@ -20,11 +20,12 @@ export function GarmentCard({ garment, onClick, onDelete, size = 'md', className
         <div
             onClick={onClick}
             className={cn(
-                'relative bg-gray-50 rounded-lg overflow-hidden group',
-                onClick && 'cursor-pointer hover:ring-2 ring-black transition-all',
+                'relative rounded-lg overflow-hidden group',
+                onClick && 'cursor-pointer hover:ring-2 transition-all',
                 sizes[size],
                 className
             )}
+            style={{ backgroundColor: 'var(--bg-secondary)' }}
         >
             <div className="w-full h-full flex items-center justify-center p-2">
                 <img

@@ -4,14 +4,14 @@
     height: calc(100vh - 80px);
     gap: 1.25rem;
     padding: 1rem 1rem 1.25rem;
-    background: #0f172a;
+    background: var(--bg-primary);
 }
 
 .conversations-list {
-    background: #020617;
+    background: var(--bg-secondary);
     overflow-y: auto;
     border-radius: 24px;
-    border: 1px solid #111827;
+    border: 1px solid var(--border-primary);
     display: flex;
     flex-direction: column;
 }
@@ -19,16 +19,16 @@
 .conversations-list h1 {
     margin: 0;
     padding: 1rem 1.1rem 0.85rem;
-    border-bottom: 1px solid #111827;
+    border-bottom: 1px solid var(--border-primary);
     font-size: 1.1rem;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .loading,
 .no-chats {
     padding: 2rem 1rem;
     text-align: center;
-    color: #999;
+    color: var(--text-tertiary);
 }
 
 .conversations-container {
@@ -38,7 +38,7 @@
 
 .conversation-item {
     padding: 0.8rem 0.9rem;
-    border-bottom: 1px solid #020617;
+    border-bottom: 1px solid transparent;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
@@ -47,12 +47,12 @@
 }
 
 .conversation-item:hover {
-    background: #020617;
+    background: var(--bg-primary);
 }
 
 .conversation-item.active {
-    background: #111827;
-    border-left: 4px solid #2563eb;
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--accent-primary);
     padding-left: calc(0.9rem - 2px);
 }
 
@@ -74,7 +74,7 @@
 
 .conv-info h3 {
     margin: 0;
-    color: #e5e7eb;
+    color: var(--text-primary);
     font-size: 1rem;
     white-space: nowrap;
     overflow: hidden;
@@ -83,7 +83,7 @@
 
 .conv-info .last-message {
     margin: 0.25rem 0 0 0;
-    color: #6b7280;
+    color: var(--text-tertiary);
     font-size: 0.85rem;
     white-space: nowrap;
     overflow: hidden;
@@ -91,8 +91,8 @@
 }
 
 .unread-badge {
-    background: #2563eb;
-    color: white;
+    background: var(--accent-primary);
+    color: var(--btn-primary-text);
     border-radius: 50%;
     width: 24px;
     height: 24px;
@@ -115,7 +115,7 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #999;
+    color: var(--text-tertiary);
     font-size: 1.1rem;
 }
 

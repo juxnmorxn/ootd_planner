@@ -375,15 +375,23 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
     });
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col overflow-hidden\">
+        <div
+            className="min-h-screen flex flex-col overflow-hidden"
+            style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+        >
             {/* Top Bar */}
-            <div className="sticky top-0 z-20 bg-white border-b border-slate-100 fade-in-down">
+            <div
+                className="sticky top-0 z-20 fade-in-down border-b"
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+            >
                 <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-                    <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
-                        <ArrowLeft className="w-5 h-5 text-slate-700" />
+                    <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-colors">
+                        <ArrowLeft className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
                     </button>
 
-                    <h1 className="text-lg font-bold text-slate-900 capitalize">{formattedDate}</h1>
+                    <h1 className="text-lg font-bold capitalize" style={{ color: 'var(--text-primary)' }}>
+                        {formattedDate}
+                    </h1>
 
                     <div className="flex gap-2">
                         {outfitId && (
@@ -399,7 +407,11 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                             showToast({ type: 'error', message: 'No se pudo duplicar el outfit' });
                                         }
                                     }}
-                                    className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-200 transition-colors"
+                                    className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                                    style={{
+                                        backgroundColor: 'var(--bg-primary)',
+                                        color: 'var(--text-secondary)',
+                                    }}
                                 >
                                     Duplicar
                                 </button>
@@ -408,7 +420,11 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                 </button>
                             </>
                         )}
-                        <button onClick={handleSave} className="px-4 py-1.5 bg-black text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
+                        <button
+                            onClick={handleSave}
+                            className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                            style={{ backgroundColor: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)' }}
+                        >
                             Guardar
                         </button>
                     </div>
@@ -416,7 +432,10 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
             </div>
 
             {/* Canvas Area - Scrollable Vertically */}
-            <div className="flex-1 relative overflow-y-auto bg-white border-b border-slate-200">
+            <div
+                className="flex-1 relative overflow-y-auto border-b"
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+            >
                 <div
                     ref={canvasRef}
                     className="absolute inset-0 p-8 overflow-auto touch-none"
@@ -429,17 +448,21 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                         {Object.entries(CATEGORY_GUIDES).map(([key, guide]) => (
                             <div
                                 key={key}
-                                className="absolute rounded-xl border border-dashed border-slate-300/60 flex items-center justify-center pointer-events-none select-none"
+                                className="absolute rounded-xl border border-dashed flex items-center justify-center pointer-events-none select-none"
                                 style={{
                                     left: `${guide.left}%`,
                                     top: `${guide.top}%`,
                                     width: `${guide.width}%`,
                                     height: `${guide.height}%`,
                                     transform: 'translate(0, 0)',
-                                    backgroundColor: guide.color,
+                                    backgroundColor: 'transparent',
+                                    borderColor: 'var(--border-primary)',
                                 }}
                             >
-                                <span className="text-[10px] font-semibold tracking-wide text-slate-600 text-center px-2">
+                                <span
+                                    className="text-[10px] font-semibold tracking-wide text-center px-2"
+                                    style={{ color: 'var(--text-tertiary)' }}
+                                >
                                     {guide.label}
                                 </span>
                             </div>
@@ -492,7 +515,10 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
             </div>
 
             {/* Bottom Bar - Thin Horizontal Scroll */}
-            <div className="h-24 bg-white border-t border-slate-200 safe-area-inset-bottom overflow-x-auto overflow-y-hidden scrollbar-hide">
+            <div
+                className="h-24 border-t safe-area-inset-bottom overflow-x-auto overflow-y-hidden scrollbar-hide"
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+            >
                 <div className="px-4 py-3 flex gap-3 min-w-min h-full items-start">
                     <div className="space-y-3 w-full">
                         {/* Nivel 1: Categorías */}
@@ -526,7 +552,8 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                             setShowCategoryMenu(false);
                                             setShowSubcategoryMenu(false);
                                         }}
-                                        className="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1"
+                                        className="text-[11px] flex items-center gap-1"
+                                        style={{ color: 'var(--text-secondary)' }}
                                     >
                                         <ArrowLeft className="w-3 h-3" />
                                         Categorías
@@ -538,7 +565,8 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                                 setShowCategoryMenu((prev) => !prev);
                                                 setShowSubcategoryMenu(false);
                                             }}
-                                            className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-1"
+                                            className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1"
+                                            style={{ color: 'var(--text-primary)' }}
                                         >
                                             {categoryInfo.label}
                                             <ChevronDown
@@ -565,11 +593,15 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                                     setShowCategoryMenu(false);
                                                     setShowSubcategoryMenu(false);
                                                 }}
-                                                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                                                    selectedCategory === cat.key
-                                                        ? 'bg-black text-white'
-                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                }`}
+                                                className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                                                style={{
+                                                    backgroundColor:
+                                                        selectedCategory === cat.key ? 'var(--btn-primary-bg)' : 'var(--bg-secondary)',
+                                                    color:
+                                                        selectedCategory === cat.key
+                                                            ? 'var(--btn-primary-text)'
+                                                            : 'var(--text-secondary)',
+                                                }}
                                             >
                                                 {cat.label}
                                             </button>
@@ -579,7 +611,12 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
 
                                 {availableSubCategories.length > 1 && (
                                     <div>
-                                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Filtrar por tipo</p>
+                                        <p
+                                            className="text-xs font-semibold uppercase tracking-wider mb-2"
+                                            style={{ color: 'var(--text-secondary)' }}
+                                        >
+                                            Filtrar por tipo
+                                        </p>
                                         <div className="flex gap-2 overflow-x-auto pb-2">
                                             {availableSubCategories
                                                 .filter((sub) => sub !== 'all')
@@ -590,13 +627,17 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                                             setSelectedSubCategory(sub);
                                                             setSmallMessage(null);
                                                         }}
-                                                        className={`
-                              flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all
-                              ${selectedSubCategory === sub
-                                                                ? 'bg-black text-white'
-                                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                            }
-                            `}
+                                                        className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                                                        style={{
+                                                            backgroundColor:
+                                                                selectedSubCategory === sub
+                                                                    ? 'var(--btn-primary-bg)'
+                                                                    : 'var(--bg-secondary)',
+                                                            color:
+                                                                selectedSubCategory === sub
+                                                                    ? 'var(--btn-primary-text)'
+                                                                    : 'var(--text-secondary)',
+                                                        }}
                                                     >
                                                         {sub}
                                                     </button>
@@ -617,7 +658,8 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                             setSmallMessage(null);
                                             setShowSubcategoryMenu(false);
                                         }}
-                                        className="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1"
+                                        className="text-[11px] flex items-center gap-1"
+                                        style={{ color: 'var(--text-secondary)' }}
                                     >
                                         <ArrowLeft className="w-3 h-3" />
                                         Subcategorías
@@ -628,7 +670,8 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                             setShowSubcategoryMenu((prev) => !prev);
                                             setShowCategoryMenu(false);
                                         }}
-                                        className="text-xs font-semibold text-slate-700 flex items-center gap-1"
+                                        className="text-xs font-semibold flex items-center gap-1"
+                                        style={{ color: 'var(--text-primary)' }}
                                     >
                                         {selectedSubCategory}
                                         <ChevronDown
@@ -653,11 +696,17 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                                         setSmallMessage(null);
                                                         setShowSubcategoryMenu(false);
                                                     }}
-                                                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                                                        selectedSubCategory === sub
-                                                            ? 'bg-black text-white'
-                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                    }`}
+                                                    className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                                                    style={{
+                                                        backgroundColor:
+                                                            selectedSubCategory === sub
+                                                                ? 'var(--btn-primary-bg)'
+                                                                : 'var(--bg-secondary)',
+                                                        color:
+                                                            selectedSubCategory === sub
+                                                                ? 'var(--btn-primary-text)'
+                                                                : 'var(--text-secondary)',
+                                                    }}
                                                 >
                                                     {sub}
                                                 </button>
@@ -665,10 +714,12 @@ export function OutfitEditor({ date, outfitId: initialOutfitId, onBack }: Outfit
                                     </div>
                                 )}
 
-                                <p className="text-sm font-semibold text-slate-700 mb-3">Selecciona una prenda</p>
+                                <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                                    Selecciona una prenda
+                                </p>
                                 <div className="flex gap-3 overflow-x-auto pb-2">
                                     {categoryGarments.length === 0 ? (
-                                        <p className="text-sm text-slate-500">
+                                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                                             No hay prendas de tipo "{selectedSubCategory}"
                                         </p>
                                     ) : (

@@ -8,6 +8,7 @@ import { syncDatabase } from '../lib/watermelon';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useToast } from '../components/ui/Toast';
+import { ThemeSwitch } from '../components/ui/ThemeSwitch';
 
 interface ProfileProps {
     onBack: () => void;
@@ -200,28 +201,40 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 overflow-y-auto pb-20">
+        <div
+            className="min-h-screen overflow-y-auto pb-20"
+            style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+        >
             {/* Header */}
-            <div className="bg-white border-b border-slate-100 sticky top-0 z-10">
+            <div
+                className="border-b sticky top-0 z-10"
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+            >
                 <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
                     <button
                         onClick={onBack}
                         className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
                     >
-                        <ArrowLeft className="w-5 h-5 text-slate-700" />
+                        <ArrowLeft className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
                     </button>
-                    <h1 className="text-xl font-bold text-slate-900">Mi Perfil</h1>
+                    <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Mi Perfil</h1>
                     <div className="w-8" />
                 </div>
             </div>
 
             <div className="max-w-md mx-auto px-4 py-6 space-y-6">
                 {/* Profile Header */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <div
+                    className="rounded-2xl shadow-sm border p-6"
+                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+                >
                     <div className="flex flex-col items-center">
                         {/* Avatar */}
                         <div className="relative mb-4">
-                            <div className="w-24 h-24 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full flex items-center justify-center text-4xl font-bold text-slate-700 overflow-hidden">
+                            <div
+                                className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold overflow-hidden"
+                                style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                            >
                                 {currentUser.profile_pic ? (
                                     <img
                                         src={currentUser.profile_pic}
@@ -237,7 +250,8 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                             <button
                                 type="button"
                                 onClick={handleAvatarClick}
-                                className="absolute bottom-0 right-0 w-8 h-8 bg-black text-white rounded-full flex items-center justify-center shadow-lg hover:bg-slate-800 transition-colors"
+                                className="absolute bottom-0 right-0 w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-colors"
+                                style={{ backgroundColor: 'var(--btn-primary-bg)', color: 'var(--btn-primary-text)' }}
                             >
                                 <Camera className="w-4 h-4" />
                             </button>
@@ -251,7 +265,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                         </div>
 
                         <div className="flex items-center gap-2 mb-1">
-                            <h2 className="text-2xl font-bold text-slate-900">
+                            <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
                                 {currentUser.username || currentUser.email}
                             </h2>
                             {currentUser.role === 'admin' && (
@@ -261,7 +275,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                                 </span>
                             )}
                         </div>
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
                             Miembro desde{' '}
                             {currentUser.created_at
                                 ? new Date(currentUser.created_at).toLocaleDateString('es-MX', {
@@ -275,7 +289,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
 
                 {/* Admin Access (Only for admins) - TOP LEVEL FOR VISIBILITY */}
                 {currentUser.role === 'admin' && (
-                    <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-md p-6 text-white animate-fade-in-up">
+                    <div className="rounded-2xl shadow-md p-6 text-white animate-fade-in-up" style={{ backgroundColor: 'var(--accent-primary)' }}>
                         <div className="flex items-center gap-3 mb-3">
                             <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
                                 <Shield className="w-6 h-6 text-white" />
@@ -299,9 +313,12 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                 )}
 
                 {/* Social & Contacts */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Contactos y Chats</h3>
-                    <p className="text-sm text-slate-600 mb-4 text-left">
+                <div
+                    className="rounded-2xl shadow-sm border p-6"
+                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+                >
+                    <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Contactos y Chats</h3>
+                    <p className="text-sm mb-4 text-left" style={{ color: 'var(--text-secondary)' }}>
                         Agrega amigos por su nombre de usuario, gestiona solicitudes de amistad y chatea solo con tus contactos aceptados.
                     </p>
                     <div className="flex flex-col gap-3">
@@ -323,14 +340,43 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                     </div>
                 </div>
 
+                {/* Appearance */}
+                <div
+                    className="rounded-2xl shadow-sm border border-slate-100 p-6"
+                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+                >
+                    <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Apariencia</h3>
+                    <p className="text-sm mb-4 text-left" style={{ color: 'var(--text-secondary)' }}>
+                        Controla el tema claro/oscuro y prueba fondos.
+                    </p>
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex flex-col">
+                            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Tema oscuro</span>
+                            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Actívalo para usar la interfaz oscura.</span>
+                        </div>
+                        <ThemeSwitch />
+                    </div>
+                    <Button
+                        variant="secondary"
+                        onClick={() => setView('fondos')}
+                        className="w-full flex items-center justify-center gap-2"
+                    >
+                        🎨
+                        Fondos
+                    </Button>
+                </div>
+
                 {/* Edit Profile */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Información Personal</h3>
+                <div
+                    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6"
+                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+                >
+                    <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Información Personal</h3>
 
                     {editing ? (
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                                     <UserIcon className="w-4 h-4 inline mr-2" />
                                     Nombre de usuario
                                 </label>
@@ -342,7 +388,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                                     <Mail className="w-4 h-4 inline mr-2" />
                                     Email
                                 </label>
@@ -391,12 +437,12 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                     ) : (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between py-2">
-                                <span className="text-sm text-slate-600">Usuario</span>
-                                <span className="text-sm font-medium text-slate-900">{currentUser.username || 'Sin usuario'}</span>
+                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Usuario</span>
+                                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{currentUser.username || 'Sin usuario'}</span>
                             </div>
                             <div className="flex items-center justify-between py-2">
-                                <span className="text-sm text-slate-600">Email</span>
-                                <span className="text-sm font-medium text-slate-900">
+                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Email</span>
+                                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                                     {currentUser.email || 'No configurado'}
                                 </span>
                             </div>
@@ -419,7 +465,10 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                 </div>
 
                 {/* Change Password */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <div
+                    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6"
+                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+                >
                     <h3 className="text-lg font-semibold text-slate-900 mb-4">
                         <Lock className="w-5 h-5 inline mr-2" />
                         Seguridad
@@ -490,16 +539,19 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                 </div>
 
                 {/* Synchronization & Storage */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <div
+                    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6"
+                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+                >
                     <h3 className="text-lg font-semibold text-slate-900 mb-4">Sincronización</h3>
                     <div className="space-y-4">
                         {/* Last Sync Info */}
-                        <div className="flex items-center justify-between py-3 border-b border-slate-100">
+                        <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'var(--border-primary)' }}>
                             <div className="flex items-center space-x-2">
                                 <Clock className="w-4 h-4 text-slate-500" />
-                                <span className="text-sm text-slate-600">Última sincronización</span>
+                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Última sincronización</span>
                             </div>
-                            <span className="text-sm font-medium text-slate-900">
+                            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                                 {currentUser?.lastSyncTimestamp && currentUser.lastSyncTimestamp > 0
                                     ? formatLastSync(currentUser.lastSyncTimestamp)
                                     : 'Nunca'}
@@ -507,12 +559,12 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                         </div>
 
                         {/* Session Info */}
-                        <div className="flex items-center justify-between py-3 border-b border-slate-100">
+                        <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'var(--border-primary)' }}>
                             <div className="flex items-center space-x-2">
                                 <Clock className="w-4 h-4 text-slate-500" />
-                                <span className="text-sm text-slate-600">Sesión válida por</span>
+                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Sesión válida por</span>
                             </div>
-                            <span className="text-sm font-medium text-slate-900">
+                            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                                 {currentUser?.loginTimestamp
                                     ? `${Math.max(0, sessionDaysLeft)} días`
                                     : 'N/A'}
@@ -539,7 +591,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                             Borrar Datos Locales
                         </Button>
 
-                        <p className="text-xs text-slate-500 mt-3">
+                        <p className="text-xs mt-3" style={{ color: 'var(--text-tertiary)' }}>
                             Las imágenes se sincronizan automáticamente con Cloudinary cuando hay conexión.
                             Tus datos están seguros en múltiples dispositivos.
                         </p>
@@ -547,8 +599,8 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                 </div>
 
                 {/* Danger Zone */}
-                <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-6">
-                    <h3 className="text-lg font-semibold text-red-600 mb-4">Zona de Peligro</h3>
+                <div className="rounded-2xl shadow-sm border p-6" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-danger, #fecaca)' }}>
+                    <h3 className="text-lg font-semibold mb-4 text-red-600">Zona de Peligro</h3>
                     <div className="space-y-3">
                         <Button
                             variant="secondary"

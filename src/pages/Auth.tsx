@@ -103,33 +103,50 @@ export function Auth({ onSuccess }: AuthProps) {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+        <div
+            className="min-h-screen flex flex-col items-center justify-center p-6"
+            style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+        >
             {/* Logo */}
             <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-black rounded-2xl mb-4 shadow-lg">
+                <div
+                    className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 shadow-lg"
+                    style={{ backgroundColor: 'var(--btn-primary-bg)' }}
+                >
                     <span className="text-4xl">👔</span>
                 </div>
-                <h1 className="text-3xl font-bold text-slate-900 mb-1">Outfit Planner</h1>
-                <p className="text-slate-600">
+                <h1 className="text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Outfit Planner</h1>
+                <p style={{ color: 'var(--text-secondary)' }}>
                     {mode === 'login' ? 'Bienvenido de vuelta' : 'Crea tu clóset digital'}
                 </p>
             </div>
 
             {/* Form Card */}
-            <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <div
+                className="w-full max-w-sm rounded-2xl shadow-sm border p-6"
+                style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+            >
                 <form onSubmit={mode === 'login' ? handleLogin : handleRegister} className="space-y-4">
                     {/* Email (required) */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                             Email
                         </label>
                         <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <User
+                                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5"
+                                style={{ color: 'var(--text-tertiary)' }}
+                            />
                             <input
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                                style={{
+                                    backgroundColor: 'var(--input-bg)',
+                                    borderColor: 'var(--input-border)',
+                                    color: 'var(--input-text)',
+                                }}
                                 placeholder="tu@email.com"
                                 required
                                 autoFocus
@@ -140,14 +157,19 @@ export function Auth({ onSuccess }: AuthProps) {
                     {/* Username (optional, only for register) */}
                     {mode === 'register' && (
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                Nombre de usuario <span className="text-slate-400">(opcional)</span>
+                            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                                Nombre de usuario <span style={{ color: 'var(--text-tertiary)' }}>(opcional)</span>
                             </label>
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+                                className="w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                                style={{
+                                    backgroundColor: 'var(--input-bg)',
+                                    borderColor: 'var(--input-border)',
+                                    color: 'var(--input-text)',
+                                }}
                                 placeholder="usuario123"
                             />
                         </div>
@@ -155,23 +177,32 @@ export function Auth({ onSuccess }: AuthProps) {
 
                     {/* Password */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                             Contraseña
                         </label>
                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                            <Lock
+                                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5"
+                                style={{ color: 'var(--text-tertiary)' }}
+                            />
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full pl-10 pr-12 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+                                className="w-full pl-10 pr-12 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                                style={{
+                                    backgroundColor: 'var(--input-bg)',
+                                    borderColor: 'var(--input-border)',
+                                    color: 'var(--input-text)',
+                                }}
                                 placeholder="••••••••"
                                 required
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                                style={{ color: 'var(--text-tertiary)' }}
                             >
                                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                             </button>
@@ -181,16 +212,24 @@ export function Auth({ onSuccess }: AuthProps) {
                     {/* Confirm Password (only for register) */}
                     {mode === 'register' && (
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                                 Confirmar contraseña
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                <Lock
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5"
+                                    style={{ color: 'var(--text-tertiary)' }}
+                                />
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all"
+                                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                                    style={{
+                                        backgroundColor: 'var(--input-bg)',
+                                        borderColor: 'var(--input-border)',
+                                        color: 'var(--input-text)',
+                                    }}
                                     placeholder="••••••••"
                                     required
                                 />
@@ -228,11 +267,15 @@ export function Auth({ onSuccess }: AuthProps) {
                     <button
                         type="button"
                         onClick={continueOffline}
-                        className="w-full px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:border-black hover:text-black transition-colors"
+                        className="w-full px-4 py-3 rounded-xl border font-semibold transition-colors"
+                        style={{
+                            borderColor: 'var(--border-primary)',
+                            color: 'var(--text-secondary)',
+                        }}
                     >
                         Continuar offline
                     </button>
-                    <p className="mt-2 text-xs text-slate-500 text-center">
+                    <p className="mt-2 text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
                         {isOffline
                             ? 'Sin conexión: usarás solo datos locales (se sincroniza cuando haya internet).'
                             : 'También puedes usar la app sin crear cuenta (modo local).'}
@@ -248,7 +291,8 @@ export function Auth({ onSuccess }: AuthProps) {
                             setPassword('');
                             setConfirmPassword('');
                         }}
-                        className="text-sm text-slate-600 hover:text-black transition-colors"
+                        className="text-sm transition-colors"
+                        style={{ color: 'var(--text-secondary)' }}
                     >
                         {mode === 'login' ? (
                             <>
@@ -264,7 +308,7 @@ export function Auth({ onSuccess }: AuthProps) {
             </div>
 
             {/* Footer Note */}
-            <p className="mt-6 text-xs text-slate-500 text-center max-w-sm">
+            <p className="mt-6 text-xs text-center max-w-sm" style={{ color: 'var(--text-tertiary)' }}>
                 Tus datos se guardan de forma segura en tu dispositivo.
                 {mode === 'register' && ' Las contraseñas están encriptadas con bcrypt.'}
             </p>

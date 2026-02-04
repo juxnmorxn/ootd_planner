@@ -17,7 +17,8 @@ interface AppState {
         | 'profile'
         | 'admin-users'
         | 'contacts'
-        | 'chats';
+        | 'chats'
+        | 'fondos';
     setCurrentView: (
         view:
             | 'auth'
@@ -28,6 +29,7 @@ interface AppState {
             | 'admin-users'
             | 'contacts'
             | 'chats'
+            | 'fondos'
     ) => void;
 
     // Active outfit being edited

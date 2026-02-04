@@ -17,9 +17,9 @@ export function Button({
         'inline-flex items-center justify-center rounded-xl font-medium transition-all touch-manipulation active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed';
 
     const variants = {
-        primary: 'bg-black text-white hover:bg-slate-800',
-        secondary: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
-        ghost: 'bg-transparent hover:bg-slate-100 text-slate-700',
+        primary: '[background-color:var(--btn-primary-bg)] [color:var(--btn-primary-text)] hover:[background-color:var(--btn-primary-hover)]',
+        secondary: '[background-color:var(--btn-secondary-bg)] [color:var(--btn-secondary-text)] hover:[background-color:var(--btn-secondary-hover)]',
+        ghost: '[background-color:var(--btn-ghost-bg)] hover:[background-color:var(--btn-ghost-hover)] [color:var(--btn-ghost-text)]',
         danger: 'bg-red-500 text-white hover:bg-red-600',
     };
 
@@ -32,6 +32,14 @@ export function Button({
     return (
         <button
             className={cn(baseStyles, variants[variant], sizes[size], className)}
+            style={{
+                backgroundColor: variant === 'primary' ? 'var(--btn-primary-bg)' : 
+                                variant === 'secondary' ? 'var(--btn-secondary-bg)' :
+                                variant === 'ghost' ? 'var(--btn-ghost-bg)' : undefined,
+                color: variant === 'primary' ? 'var(--btn-primary-text)' :
+                      variant === 'secondary' ? 'var(--btn-secondary-text)' :
+                      variant === 'ghost' ? 'var(--btn-ghost-text)' : undefined,
+            }}
             {...props}
         >
             {children}
