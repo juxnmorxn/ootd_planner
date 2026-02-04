@@ -121,21 +121,22 @@
 
 @media (max-width: 768px) {
     .chats-page {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        gap: 0.75rem;
     }
 
     .conversations-list {
-        position: absolute;
-        left: -300px;
-        top: 0;
-        width: 300px;
-        height: 100%;
-        border-right: 1px solid #ddd;
-        transition: left 0.3s;
-        z-index: 100;
+        position: static;
+        width: 100%;
+        height: auto;
+        max-height: 40vh;
+        border-right: none;
     }
 
-    .conversations-list.open {
-        left: 0;
+    .chat-main {
+        flex: 1;
+        min-height: 40vh;
     }
 }

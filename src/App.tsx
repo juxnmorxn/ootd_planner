@@ -181,9 +181,13 @@ function App() {
     setSelectedOutfitId(null);
   };
 
-  const handleNavigate = (item: 'calendar' | 'closet' | 'settings') => {
+  const handleNavigate = (item: 'calendar' | 'closet' | 'contacts' | 'settings') => {
     if (item === 'settings') {
       setView('profile');
+      return;
+    }
+    if (item === 'contacts') {
+      setView('contacts');
       return;
     }
     setView(item);
@@ -214,9 +218,18 @@ function App() {
     return <Auth onSuccess={handleAuthSuccess} />;
   }
 
-  // Show bottom nav for main views (calendar and closet)
-  const showBottomNav = safeView === 'calendar' || safeView === 'closet';
-  const navActive = (safeView === 'calendar' ? 'calendar' : safeView === 'closet' ? 'closet' : 'calendar') as 'calendar' | 'closet';
+  // Show bottom nav for main views (calendar, clóset y contactos/chats)
+  const showBottomNav =
+    safeView === 'calendar' || safeView === 'closet' || safeView === 'contacts' || safeView === 'chats';
+  const navActive = (
+    safeView === 'calendar'
+      ? 'calendar'
+      : safeView === 'closet'
+      ? 'closet'
+      : safeView === 'contacts' || safeView === 'chats'
+      ? 'contacts'
+      : 'calendar'
+  ) as 'calendar' | 'closet' | 'contacts';
 
   return (
     <div

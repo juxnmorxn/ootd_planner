@@ -1,7 +1,7 @@
-import { Home, ShirtIcon, User } from 'lucide-react';
+import { Home, ShirtIcon, User, MessageCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
-type NavItem = 'calendar' | 'closet' | 'settings';
+type NavItem = 'calendar' | 'closet' | 'contacts' | 'settings';
 
 interface BottomNavProps {
     active: NavItem;
@@ -12,6 +12,7 @@ export function BottomNav({ active, onNavigate }: BottomNavProps) {
     const items: Array<{ key: NavItem; icon: typeof Home; label: string }> = [
         { key: 'calendar', icon: Home, label: 'Calendario' },
         { key: 'closet', icon: ShirtIcon, label: 'Clóset' },
+        { key: 'contacts', icon: MessageCircle, label: 'Contactos' },
         // La opción "Ajustes" realmente abre tu pantalla de perfil,
         // así que la mostramos como "Perfil" con el icono de usuario.
         { key: 'settings', icon: User, label: 'Perfil' },
