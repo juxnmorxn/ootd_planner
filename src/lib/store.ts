@@ -49,6 +49,10 @@ interface AppState {
     // UI state
     selectedCategory: string | null;
     setSelectedCategory: (category: string | null) => void;
+    
+    // Chat state: target user to open chat with (set from Contacts)
+    currentChatTargetUserId: string | null;
+    setCurrentChatTargetUserId: (userId: string | null) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -61,6 +65,7 @@ export const useStore = create<AppState>()(
                 currentUser: null,
                 currentView: 'auth',
                 activeOutfit: { id: null, date: null, layers: [] },
+                currentChatTargetUserId: null,
             }),
 
             // Current view
@@ -129,6 +134,10 @@ export const useStore = create<AppState>()(
             // UI state
             selectedCategory: null,
             setSelectedCategory: (category) => set({ selectedCategory: category }),
+
+            // Chat state
+            currentChatTargetUserId: null,
+            setCurrentChatTargetUserId: (userId) => set({ currentChatTargetUserId: userId }),
         }),
         {
             name: 'outfit-planner-storage', // localStorage key

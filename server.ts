@@ -459,6 +459,43 @@ app.delete('/api/contacts/:user_id/:contact_id', (req, res) => {
     }
 });
 
+// Asegurar conversación entre dos contactos (abrir chat)
+app.post('/api/contacts/open-chat', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        const contact = db.getContact(user_id, contact_id);
+        if (!contact || contact.status !== 'aceptado') {
+            return res.status(403).json({ error: 'Solo puedes chatear con contactos aceptados' });
+        }
+
+        let conversation = db.getConversationByUsers(user_id, contact_id);
+        if (!conversation) {
+            conversation = db.createConversation({
+                id: uuidv4(),
+                user_id_1: user_id,
+                user_id_2: contact_id,
+            });
+        }
+
+        const otherUser = db.getUser(contact_id);
+        const responseBody: any = {
+            ...conversation,
+            other_user: otherUser
+                ? { id: otherUser.id, username: otherUser.username, profile_pic: otherUser.profile_pic }
+                : null,
+        };
+
+        res.json(responseBody);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ============ CONVERSATIONS ============
 
 // Obtener conversaciones de un usuario

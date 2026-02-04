@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ContactSearch } from '../components/chat/ContactSearch';
 import { FriendRequests } from '../components/chat/FriendRequests';
 import { useContacts } from '../hooks/useContacts';
+import { useStore } from '../lib/store';
 import type { User, Contact as ContactModel } from '../types';
 import './Contacts.css';
 
@@ -11,7 +12,9 @@ interface ContactsPageProps {
 
 export const Contacts: React.FC<ContactsPageProps> = ({ userId }) => {
     const [refreshKey, setRefreshKey] = useState(0);
-    const { contacts, getContacts } = useContacts();
+    const { contacts, getContacts, ensureConversation } = useContacts();
+    const setView = useStore((state) => state.setCurrentView);
+    const setCurrentChatTargetUserId = useStore((state) => state.setCurrentChatTargetUserId);
 
     type ContactWithUser = ContactModel & {
         contact_user?: Pick<User, 'id' | 'username' | 'profile_pic'> | null;
@@ -30,6 +33,20 @@ export const Contacts: React.FC<ContactsPageProps> = ({ userId }) => {
     };
 
     const enrichedContacts = (contacts as unknown as ContactWithUser[]) || [];
+
+    const handleOpenChat = async (contactUserId?: string | null) => {
+        if (!contactUserId) return;
+
+        try {
+            // Garantizar que exista conversación, incluso para contactos antiguos
+            await ensureConversation(userId, contactUserId);
+        } catch (err) {
+            console.error('[Contacts] Failed to ensure conversation:', err);
+        }
+
+        setCurrentChatTargetUserId(contactUserId);
+        setView('chats');
+    };
 
     return (
         <div className="contacts-page">
@@ -57,7 +74,11 @@ export const Contacts: React.FC<ContactsPageProps> = ({ userId }) => {
                         ) : (
                             <div className="contacts-list">
                                 {enrichedContacts.map((c) => (
-                                    <div key={c.id} className="contact-item">
+                                    <div
+                                        key={c.id}
+                                        className="contact-item"
+                                        onClick={() => handleOpenChat(c.contact_user?.id)}
+                                    >
                                         <div className="contact-avatar">
                                             {c.contact_user?.profile_pic ? (
                                                 <img

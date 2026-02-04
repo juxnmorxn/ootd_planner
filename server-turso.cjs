@@ -659,6 +659,60 @@ app.delete('/api/contacts/:user_id/:contact_id', async (req, res) => {
   }
 });
 
+// Asegurar conversación entre dos contactos (abrir chat)
+app.post('/api/contacts/open-chat', async (req, res) => {
+  try {
+    const { user_id, contact_id } = req.body;
+
+    if (!user_id || !contact_id) {
+      return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+    }
+
+    const { rows: contactRows } = await turso.execute({
+      sql: 'SELECT * FROM contacts WHERE user_id = ?1 AND contact_id = ?2',
+      args: [user_id, contact_id],
+    });
+
+    const contact = contactRows[0];
+    if (!contact || contact.status !== 'aceptado') {
+      return res.status(403).json({ error: 'Solo puedes chatear con contactos aceptados' });
+    }
+
+    let conversation = await getConversationByUsers(user_id, contact_id);
+    const now = new Date().toISOString();
+
+    if (!conversation) {
+      const convId = randomUUID();
+      await turso.execute({
+        sql: 'INSERT INTO conversations (id, user_id_1, user_id_2, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)',
+        args: [convId, user_id, contact_id, now, now],
+      });
+
+      const { rows } = await turso.execute({
+        sql: 'SELECT * FROM conversations WHERE id = ?1',
+        args: [convId],
+      });
+      conversation = rows[0];
+    }
+
+    const otherUser = await getUserById(contact_id);
+
+    res.json({
+      id: conversation.id,
+      user_id_1: conversation.user_id_1,
+      user_id_2: conversation.user_id_2,
+      created_at: conversation.created_at,
+      updated_at: conversation.updated_at,
+      other_user: otherUser
+        ? { id: otherUser.id, username: otherUser.username, profile_pic: otherUser.profile_pic }
+        : null,
+    });
+  } catch (error) {
+    console.error('[API] Contacts open-chat error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Change password
 app.post('/api/auth/change-password', async (req, res) => {
   try {

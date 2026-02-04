@@ -1121,6 +1121,58 @@ app.delete('/api/contacts/:user_id/:contact_id', (req, res) => {
     }
 });
 
+// Asegurar conversación entre dos contactos (abrir chat)
+app.post('/api/contacts/open-chat', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        const contact = db
+            .prepare('SELECT * FROM contacts WHERE user_id = ? AND contact_id = ?')
+            .get(user_id, contact_id);
+
+        if (!contact || contact.status !== 'aceptado') {
+            return res.status(403).json({ error: 'Solo puedes chatear con contactos aceptados' });
+        }
+
+        const now = new Date().toISOString();
+
+        let conversation = db
+            .prepare(
+                'SELECT * FROM conversations WHERE (user_id_1 = ? AND user_id_2 = ?) OR (user_id_1 = ? AND user_id_2 = ?)' 
+            )
+            .get(user_id, contact_id, contact_id, user_id);
+
+        if (!conversation) {
+            const convId = randomUUID();
+            db.prepare('INSERT INTO conversations (id, user_id_1, user_id_2, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+                .run(convId, user_id, contact_id, now, now);
+
+            conversation = db
+                .prepare('SELECT * FROM conversations WHERE id = ?')
+                .get(convId);
+        }
+
+        const otherUser = db
+            .prepare('SELECT id, username, profile_pic FROM users WHERE id = ?')
+            .get(contact_id);
+
+        res.json({
+            id: conversation.id,
+            user_id_1: conversation.user_id_1,
+            user_id_2: conversation.user_id_2,
+            created_at: conversation.created_at,
+            updated_at: conversation.updated_at,
+            other_user: otherUser || null,
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ============ STATS ============
 
 app.get('/api/stats/:userId', (req, res) => {

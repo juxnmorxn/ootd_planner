@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useChat } from '../hooks/useChat';
 import { ChatWindow } from '../components/chat/ChatWindow';
+import { useStore } from '../lib/store';
 import './Chats.css';
 
 interface ChatsPageProps {
@@ -11,6 +12,8 @@ export const Chats: React.FC<ChatsPageProps> = ({ userId }) => {
     const { conversations, getConversations } = useChat();
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const currentChatTargetUserId = useStore((state) => state.currentChatTargetUserId);
+    const setCurrentChatTargetUserId = useStore((state) => state.setCurrentChatTargetUserId);
 
     useEffect(() => {
         const loadConversations = async () => {
@@ -25,6 +28,21 @@ export const Chats: React.FC<ChatsPageProps> = ({ userId }) => {
         const interval = setInterval(loadConversations, 3000);
         return () => clearInterval(interval);
     }, [userId]);
+
+    // Cuando hay un objetivo de chat (desde Contactos), seleccionar automáticamente
+    useEffect(() => {
+        if (!currentChatTargetUserId || conversations.length === 0) return;
+
+        const convForUser = conversations.find(
+            (c) => c.other_user?.id === currentChatTargetUserId
+        );
+
+        if (convForUser) {
+            setSelectedConversationId(convForUser.id);
+            // Limpiar el objetivo después de usarlo
+            setCurrentChatTargetUserId(null);
+        }
+    }, [currentChatTargetUserId, conversations]);
 
     const selectedConversation = conversations.find((c) => c.id === selectedConversationId);
 

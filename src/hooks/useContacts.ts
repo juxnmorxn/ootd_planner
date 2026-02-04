@@ -157,6 +157,24 @@ export const useContacts = () => {
         }
     };
 
+    // Asegurar conversación para un contacto aceptado (abrir chat)
+    const ensureConversation = async (userId: string, contactId: string) => {
+        setError(null);
+        try {
+            const response = await fetch(`${API_URL}/contacts/open-chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, contact_id: contactId }),
+            });
+
+            if (!response.ok) throw new Error('Failed to ensure conversation');
+            return await response.json();
+        } catch (err: any) {
+            setError(err.message);
+            throw err;
+        }
+    };
+
     return {
         contacts,
         pendingRequests,
@@ -170,5 +188,6 @@ export const useContacts = () => {
         rejectRequest,
         blockContact,
         removeContact,
+        ensureConversation,
     };
 };
