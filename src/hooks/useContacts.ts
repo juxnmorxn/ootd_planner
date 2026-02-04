@@ -14,17 +14,22 @@ export const useContacts = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Buscar usuario por username
-    const searchUser = async (username: string): Promise<User | null> => {
+    // Buscar usuarios por username (búsqueda parcial, devuelve lista)
+    const searchUser = async (username: string, currentUserId?: string): Promise<User[]> => {
         setError(null);
         try {
-            const response = await fetch(`${API_URL}/contacts/search/${username}`);
-            if (response.status === 404) return null;
+            const encoded = encodeURIComponent(username);
+            const url = currentUserId
+                ? `${API_URL}/contacts/search/${encoded}?excludeUserId=${encodeURIComponent(currentUserId)}`
+                : `${API_URL}/contacts/search/${encoded}`;
+
+            const response = await fetch(url);
+            if (response.status === 404) return [];
             if (!response.ok) throw new Error('Failed to search user');
             return await response.json();
         } catch (err: any) {
             setError(err.message);
-            return null;
+            return [];
         }
     };
 

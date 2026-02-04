@@ -67,6 +67,12 @@
     border: 1px solid #eee;
 }
 
+.result-item + .result-item {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e0e0e0;
+}
+
 .result-header {
     display: flex;
     gap: 1rem;

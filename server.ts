@@ -247,19 +247,29 @@ app.get('/api/stats/:userId', (req, res) => {
 
 // ============ CONTACTS ============
 
-// Buscar usuario por username
-app.get('/api/contacts/search/:username', (req, res) => {
+// Buscar usuarios por username (búsqueda parcial, predictiva)
+app.get('/api/contacts/search/:query', (req, res) => {
     try {
         const allUsers = db.getAllUsers();
-        const searchResult = allUsers.find(u => u.username?.toLowerCase() === req.params.username.toLowerCase());
+        const search = req.params.query.toLowerCase();
+        const excludeUserId = (req.query.excludeUserId as string | undefined) || undefined;
 
-        if (!searchResult) {
+        const matches = allUsers.filter((u) => {
+            if (excludeUserId && u.id === excludeUserId) return false;
+
+            const username = u.username?.toLowerCase() || '';
+            const email = u.email?.toLowerCase() || '';
+
+            return username.includes(search) || email.includes(search);
+        });
+
+        if (!matches.length) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
 
         // No devolver password_hash
-        const { password_hash: _, ...userPublic } = searchResult;
-        res.json(userPublic);
+        const sanitized = matches.map(({ password_hash: _password, ...userPublic }) => userPublic);
+        res.json(sanitized);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
