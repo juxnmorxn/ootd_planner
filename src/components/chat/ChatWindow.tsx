@@ -17,18 +17,43 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
     const [loading, setLoading] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const touchStartXRef = useRef<number>(0);
     const touchStartTimeRef = useRef<number>(0);
+
+    // Fix para iOS/Safari - ajustar 100vh cuando se abre el teclado
+    useEffect(() => {
+        const fixVH = () => {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        };
+        
+        fixVH();
+        window.addEventListener('resize', fixVH);
+        return () => window.removeEventListener('resize', fixVH);
+    }, []);
+
+    // Auto-scroll al fondo cuando se cargan mensajes
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [currentMessages, typingUsers]);
+
+    // Auto-scroll cuando se abre el input
+    const handleInputFocus = () => {
+        setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
+    };
 
     useEffect(() => {
         getMessages(conversationId);
         markConversationAsRead(conversationId);
     }, [conversationId]);
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [currentMessages, typingUsers]);
 
     // Detectar swipe hacia la izquierda (gesto nativo)
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -121,7 +146,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
                 </div>
             </div>
 
-            <div className="messages-container">
+            <div className="messages-container" ref={messagesContainerRef}>
                 {currentMessages.length === 0 ? (
                     <p className="no-messages">No hay mensajes aún. ¡Inicia la conversación!</p>
                 ) : (
@@ -155,10 +180,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
 
             <form onSubmit={handleSendMessage} className="chat-input-form">
                 <input
+                    ref={inputRef}
                     type="text"
                     placeholder="Escribe un mensaje..."
                     value={messageContent}
                     onChange={handleMessageChange}
+                    onFocus={handleInputFocus}
                     disabled={loading}
                 />
                 <button type="submit" disabled={loading || !messageContent.trim()}>

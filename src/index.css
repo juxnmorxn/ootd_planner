@@ -24,6 +24,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+  
+  /* Fix para iOS/Safari - 100vh con teclado abierto */
+  --vh: 1vh;
 
   /* Light Theme (Default) */
   --bg-primary: #f8fafc;
