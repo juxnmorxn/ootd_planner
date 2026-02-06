@@ -1,10 +1,18 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Search, MessageCircle, ChevronDown, Users } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
+import { useContacts } from '../hooks/useContacts';
 import { useStore } from '../lib/store';
 import { ChatWindow } from '../components/chat/ChatWindow';
 import type { User, ConversationWithData } from '../types';
 import './ChatInbox.css';
+
+const API_URL = (() => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:3001/api';
+    }
+    return '/api';
+})();
 
 interface ChatInboxProps {
     userId: string;
@@ -14,6 +22,7 @@ type TabType = 'messages' | 'requests';
 
 export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     const { conversations, getConversations } = useChat(userId);
+    const { sendRequest } = useContacts();
     const { currentUser } = useStore();
     
     const [searchQuery, setSearchQuery] = useState('');
@@ -23,6 +32,7 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     const [showChatView, setShowChatView] = useState(false);
     const [activeTab, setActiveTab] = useState<TabType>('messages');
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [searchUsers, setSearchUsers] = useState<User[]>([]);
 
     // Cargar chats y contactos
     useEffect(() => {
@@ -33,6 +43,33 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
         };
         load();
     }, [userId, getConversations]);
+
+    // Buscar usuarios cuando escribe en la barra
+    useEffect(() => {
+        const search = async () => {
+            if (!searchQuery.trim()) {
+                setSearchUsers([]);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/contacts/search/${encodeURIComponent(searchQuery)}?excludeUserId=${userId}`);
+                if (response.ok) {
+                    const results = await response.json();
+                    // Filtrar usuarios que ya son contactos
+                    setSearchUsers(results || []);
+                } else {
+                    setSearchUsers([]);
+                }
+            } catch (err) {
+                console.error('Search error:', err);
+                setSearchUsers([]);
+            }
+        };
+
+        const debounce = setTimeout(search, 300);
+        return () => clearTimeout(debounce);
+    }, [searchQuery, userId]);
 
     // Detectar mobile
     useEffect(() => {
@@ -55,11 +92,8 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
             conv.other_user?.username?.toLowerCase().includes(query)
         );
 
-        // Buscar usuarios para agregar (por ahora devolver contactos existentes)
-        const users: User[] = [];
-
-        return { chats, users };
-    }, [searchQuery, conversations]);
+        return { chats, users: searchUsers };
+    }, [searchQuery, conversations, searchUsers]);
 
     const selectedConversation = conversations.find(c => c.id === selectedConversationId);
 
@@ -72,14 +106,43 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     };
 
     // Manejar agregar amigo desde búsqueda
-    // const handleAddFriend = async () => {
-    //     // Aquí se integraría con el API para enviar solicitud
-    //     // Por ahora, solo placeholder
-    // };
+    const handleAddFriend = async (contactId: string) => {
+        try {
+            await sendRequest(userId, contactId);
+            // Remover usuario de la lista de búsqueda
+            setSearchUsers(prev => prev.filter(u => u.id !== contactId));
+        } catch (err) {
+            console.error('Error sending friend request:', err);
+        }
+    };
 
     // Manejar abrir chat desde usuario en búsqueda
-    const handleOpenChatWithUser = async () => {
-        // Por ahora, solo placeholder
+    const handleOpenChatWithUser = async (user: User) => {
+        try {
+            // Crear conversación con el usuario
+            const response = await fetch(`${API_URL}/contacts/open-chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, contact_id: user.id }),
+            });
+            
+            if (response.ok) {
+                // Recarga conversaciones y busca la nueva
+                await getConversations(userId);
+                const convs = conversations.find(c => c.other_user?.id === user.id);
+                if (convs) {
+                    setSelectedConversationId(convs.id);
+                    if (isMobile) {
+                        setShowChatView(true);
+                    }
+                }
+                
+                // Limpiar búsqueda
+                setSearchQuery('');
+            }
+        } catch (err) {
+            console.error('Error opening chat:', err);
+        }
     };
 
     // Obtener solicitudes de amistad pendientes
@@ -177,6 +240,7 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                 <>
                                     {searchResults.chats.length > 0 && (
                                         <div className="search-section">
+                                            <h3 className="section-title">Chats</h3>
                                             {searchResults.chats.map((conv) => (
                                                 <div
                                                     key={conv.id}
@@ -216,11 +280,12 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
 
                                     {searchResults.users.length > 0 && (
                                         <div className="search-section">
+                                            <h3 className="section-title">Usuarios</h3>
                                             {searchResults.users.map((user) => (
                                                 <div
                                                     key={user.id}
-                                                    className="chat-item"
-                                                    onClick={() => handleOpenChatWithUser()}
+                                                    className="chat-item user-item"
+                                                    onClick={() => handleOpenChatWithUser(user)}
                                                 >
                                                     <div className="chat-avatar">
                                                         {user.profile_pic ? (
@@ -230,11 +295,17 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                                                 {(user.username || '?').charAt(0).toUpperCase()}
                                                             </div>
                                                         )}
-                                                        <div className="online-indicator"></div>
                                                     </div>
                                                     <div className="chat-content">
                                                         <p className="chat-name">{user.username}</p>
+                                                        <p className="chat-message">Desconectado</p>
                                                     </div>
+                                                    <button 
+                                                        className="btn-follow"
+                                                        onClick={() => handleAddFriend(user.id)}
+                                                    >
+                                                        Seguir
+                                                    </button>
                                                 </div>
                                             ))}
                                         </div>
