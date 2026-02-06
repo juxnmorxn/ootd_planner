@@ -47,12 +47,13 @@ export function BottomNav({ active, onNavigate, currentUser }: BottomNavProps) {
                                 <div
                                     className={cn(
                                         'w-6 h-6 rounded-full overflow-hidden flex items-center justify-center transition-all',
-                                        isActive ? 'ring-2 ring-offset-1' : ''
+                                        isActive ? 'ring-2' : ''
                                     )}
                                     style={{
                                         backgroundColor: 'var(--bg-tertiary)',
-                                        ringColor: isActive ? 'var(--accent-color)' : undefined,
-                                        ringOffsetColor: isActive ? 'var(--bg-secondary)' : undefined,
+                                        ...(isActive && {
+                                            boxShadow: '0 0 0 2px var(--bg-secondary), 0 0 0 4px var(--accent-color)',
+                                        }),
                                     }}
                                 >
                                     {currentUser?.profile_pic ? (

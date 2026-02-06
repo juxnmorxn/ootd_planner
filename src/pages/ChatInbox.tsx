@@ -33,12 +33,31 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     const [activeTab, setActiveTab] = useState<TabType>('messages');
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [searchUsers, setSearchUsers] = useState<User[]>([]);
+    const [friendRequests, setFriendRequests] = useState<any[]>([]);
+    const [requestsLoading, setRequestsLoading] = useState(false);
 
-    // Cargar chats y contactos
+    // Cargar solicitudes pendientes
+    const loadPendingRequests = async () => {
+        setRequestsLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/contacts/pending/${userId}`);
+            if (response.ok) {
+                const requests = await response.json();
+                setFriendRequests(requests || []);
+            }
+        } catch (err) {
+            console.error('Error loading pending requests:', err);
+        } finally {
+            setRequestsLoading(false);
+        }
+    };
+
+    // Cargar chats y solicitudes pendientes
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             await getConversations(userId);
+            await loadPendingRequests();
             setLoading(false);
         };
         load();
@@ -145,15 +164,42 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
         }
     };
 
-    // Obtener solicitudes de amistad pendientes
-    // Por ahora, filtrar los contactos con estado pendiente
-    // Nota: pendingRequests no tiene datos del usuario, necesitaría otra llamada a API
-    const friendRequests: any[] = [];
-
     // Función para aceptar/rechazar solicitud
     const handleFriendRequest = async (contactId: string, accept: boolean) => {
-        // Aquí se integraría con el API
-        console.log(`${accept ? 'Aceptar' : 'Rechazar'} solicitud:`, contactId);
+        try {
+            if (accept) {
+                // Aceptar solicitud
+                const response = await fetch(`${API_URL}/contacts/accept`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, contact_id: contactId }),
+                });
+
+                if (response.ok) {
+                    // Recargar solicitudes y conversaciones
+                    await loadPendingRequests();
+                    await getConversations(userId);
+                } else {
+                    console.error('Error accepting request');
+                }
+            } else {
+                // Rechazar solicitud
+                const response = await fetch(`${API_URL}/contacts/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, contact_id: contactId }),
+                });
+
+                if (response.ok) {
+                    // Recargar solicitudes
+                    await loadPendingRequests();
+                } else {
+                    console.error('Error rejecting request');
+                }
+            }
+        } catch (err) {
+            console.error('Error handling friend request:', err);
+        }
     };
 
     // Vista mobile: mostrar solo chat
@@ -387,13 +433,15 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                             <div className="request-actions">
                                                 <button 
                                                     className="btn-accept"
-                                                    onClick={() => handleFriendRequest(req.id, true)}
+                                                    onClick={() => handleFriendRequest(req.user_id, true)}
+                                                    disabled={requestsLoading}
                                                 >
                                                     ✓
                                                 </button>
                                                 <button 
                                                     className="btn-reject"
-                                                    onClick={() => handleFriendRequest(req.id, false)}
+                                                    onClick={() => handleFriendRequest(req.user_id, false)}
+                                                    disabled={requestsLoading}
                                                 >
                                                     ✕
                                                 </button>
