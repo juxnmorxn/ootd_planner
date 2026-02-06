@@ -84,12 +84,15 @@ export const useWebSocket = (userId: string | null) => {
     ) => {
         if (!socketRef.current) return;
 
-        socketRef.current.emit('message:send', {
+        const messageData = {
             conversationId,
             senderId,
             recipientId,
             content,
-        });
+        };
+        
+        console.log('[WebSocket] Emitting message:send with data:', messageData);
+        socketRef.current.emit('message:send', messageData);
     }, []);
 
     // Indicador de escritura

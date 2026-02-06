@@ -45,8 +45,11 @@ export const useChat = (userId?: string) => {
     // Escuchar errores de mensajes
     useEffect(() => {
         const unsubscribe = webSocket.onMessageError((err) => {
-            console.error('[Chat] Message error:', err);
-            setError(`Failed to send message: ${err.error}`);
+            const errorMessage = err.details || err.error || JSON.stringify(err);
+            console.error('[Chat] Message error - Main:', err.error);
+            console.error('[Chat] Message error - Details:', err.details);
+            console.error('[Chat] Message error - Full:', err);
+            setError(`Failed to send message: ${errorMessage}`);
         });
         return unsubscribe;
     }, [webSocket]);

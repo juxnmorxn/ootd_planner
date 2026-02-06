@@ -128,13 +128,17 @@ self.addEventListener('fetch', (event) => {
           if (response && response.status === 200) {
             const clonedResponse = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clonedResponse);
+              cache.put(request, clonedResponse).catch((err) => {
+                console.log('[SW] Cache put error:', err);
+              });
+            }).catch((err) => {
+              console.log('[SW] Cache open error:', err);
             });
           }
           return response;
         })
         .catch(() => {
-          return caches.match(request);
+          return caches.match(request).catch(() => null);
         }),
     );
     return;

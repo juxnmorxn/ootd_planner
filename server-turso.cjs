@@ -1718,11 +1718,23 @@ initDb()
 
       // Message events
       socket.on('message:send', async (data) => {
+        console.log('[Socket.io] Received message:send event with data:', JSON.stringify(data, null, 2));
+        
         const { conversationId, senderId, recipientId, content } = data;
         
+        console.log('[Socket.io] Destructured values:');
+        console.log('  - conversationId:', conversationId, 'type:', typeof conversationId);
+        console.log('  - senderId:', senderId, 'type:', typeof senderId);
+        console.log('  - recipientId:', recipientId, 'type:', typeof recipientId);
+        console.log('  - content:', content, 'type:', typeof content, 'trimmed:', content?.trim());
+        
         if (!conversationId || !senderId || !recipientId || !content?.trim()) {
-          console.error('[Socket.io] Invalid message data:', data);
-          socket.emit('message:error', { error: 'Invalid message data' });
+          console.error('[Socket.io] Validation failed - Invalid message data:');
+          console.error('  - conversationId exists?', !!conversationId);
+          console.error('  - senderId exists?', !!senderId);
+          console.error('  - recipientId exists?', !!recipientId);
+          console.error('  - content exists and not empty?', !!(content?.trim()));
+          socket.emit('message:error', { error: 'Invalid message data', received: { conversationId, senderId, recipientId, content } });
           return;
         }
 
