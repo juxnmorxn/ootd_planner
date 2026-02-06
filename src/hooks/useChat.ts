@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { ConversationWithData, MessageWithSender } from '../types';
 import { useWebSocket } from './useWebSocket';
 
@@ -53,7 +53,7 @@ export const useChat = (userId?: string) => {
     }, [webSocket]);
 
     // Obtener conversaciones de un usuario
-    const getConversations = async (userId: string) => {
+    const getConversations = useCallback(async (userId: string) => {
         setLoading(true);
         setError(null);
         try {
@@ -66,10 +66,10 @@ export const useChat = (userId?: string) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     // Obtener mensajes de una conversación
-    const getMessages = async (conversationId: string) => {
+    const getMessages = useCallback(async (conversationId: string) => {
         setLoading(true);
         setError(null);
         try {
@@ -82,10 +82,10 @@ export const useChat = (userId?: string) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     // Enviar mensaje (ahora usa WebSocket)
-    const sendMessage = async (conversationId: string, senderId: string, recipientId: string, content: string) => {
+    const sendMessage = useCallback(async (conversationId: string, senderId: string, recipientId: string, content: string) => {
         setError(null);
         try {
             // Enviar por WebSocket si está conectado, sino por HTTP
@@ -114,10 +114,10 @@ export const useChat = (userId?: string) => {
             setError(err.message);
             throw err;
         }
-    };
+    }, [webSocket]);
 
     // Marcar mensaje como leído
-    const markAsRead = async (messageId: string, conversationId: string, userId: string) => {
+    const markAsRead = useCallback(async (messageId: string, conversationId: string, userId: string) => {
         try {
             if (webSocket.socket?.connected) {
                 webSocket.markMessageAsRead(messageId, conversationId, userId);
@@ -129,10 +129,10 @@ export const useChat = (userId?: string) => {
         } catch (err: any) {
             console.error('Failed to mark message as read:', err);
         }
-    };
+    }, [webSocket]);
 
     // Marcar conversación como leída
-    const markConversationAsRead = async (conversationId: string) => {
+    const markConversationAsRead = useCallback(async (conversationId: string) => {
         try {
             await fetch(`${API_URL}/conversations/${conversationId}/read`, {
                 method: 'PUT',
@@ -140,14 +140,14 @@ export const useChat = (userId?: string) => {
         } catch (err: any) {
             console.error('Failed to mark conversation as read:', err);
         }
-    };
+    }, []);
 
     // Indicador de escribiendo
-    const sendTypingIndicator = (conversationId: string, userId: string, recipientId: string, isTyping: boolean) => {
+    const sendTypingIndicator = useCallback((conversationId: string, userId: string, recipientId: string, isTyping: boolean) => {
         if (webSocket.socket?.connected) {
             webSocket.sendTypingIndicator(conversationId, userId, recipientId, isTyping);
         }
-    };
+    }, [webSocket]);
 
     return {
         conversations,

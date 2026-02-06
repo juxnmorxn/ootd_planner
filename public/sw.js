@@ -139,8 +139,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Solo cachear GET requests
-  if (request.method !== 'GET') {
+  // Solo cachear GET requests con esquema http/https
+  if (request.method !== 'GET' || !request.url.startsWith('http')) {
     return event.respondWith(fetch(request));
   }
 
@@ -156,7 +156,9 @@ self.addEventListener('fetch', (event) => {
 
         const clonedResponse = response.clone();
         caches.open(RUNTIME_CACHE).then((cache) => {
-          cache.put(request, clonedResponse);
+          cache.put(request, clonedResponse).catch(() => {
+            // Ignorar errores de cache (extensiones, etc)
+          });
         });
 
         return response;
