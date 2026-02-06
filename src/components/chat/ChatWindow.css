@@ -58,12 +58,18 @@
     align-items: center;
     justify-content: flex-start;
     gap: 0.5rem;
+}
+
 .message.sent .message-content {
     background: #111827;
     color: #f9fafb;
     border-bottom-right-radius: 6px;
 }
 
+.message.received .message-content {
+    background: #e5e7eb;
+    color: #020617;
+    border-bottom-left-radius: 6px;
 }
 
 .chat-header-back {
@@ -75,10 +81,6 @@
     align-items: center;
     justify-content: center;
     color: var(--text-secondary);
-.message.received .message-content {
-    background: #e5e7eb;
-    color: #020617;
-    border-bottom-left-radius: 6px;
 }
 
 .message-time {
