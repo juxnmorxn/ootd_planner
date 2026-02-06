@@ -127,6 +127,11 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     // Manejar agregar amigo desde búsqueda
     const handleAddFriend = async (contactId: string) => {
         try {
+            console.log('[ChatInbox] handleAddFriend called:', { userId, contactId });
+            if (!userId) {
+                console.error('[ChatInbox] No userId available');
+                return;
+            }
             await sendRequest(userId, contactId);
             // Remover usuario de la lista de búsqueda
             setSearchUsers(prev => prev.filter(u => u.id !== contactId));
