@@ -23,6 +23,33 @@ export interface TypingIndicator {
     conversationId: string;
 }
 
+export interface ContactRequestEvent {
+    id: string;
+    user_id: string;
+    contact_id: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    from_user?: {
+        id: string;
+        username: string;
+        profile_pic?: string | null;
+    } | null;
+}
+
+export interface ContactAcceptedEvent {
+    user_id: string;
+    contact_id: string;
+    conversation_id: string;
+    created_at: string;
+    updated_at: string;
+    other_user?: {
+        id: string;
+        username: string;
+        profile_pic?: string | null;
+    } | null;
+}
+
 export const useWebSocket = (userId: string | null) => {
     const socketRef = useRef<Socket | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -161,6 +188,18 @@ export const useWebSocket = (userId: string | null) => {
         return () => socketRef.current?.off('user:typing', callback);
     }, []);
 
+    const onContactRequest = useCallback((callback: (event: ContactRequestEvent) => void) => {
+        if (!socketRef.current) return () => {};
+        socketRef.current.on('contact:request', callback);
+        return () => socketRef.current?.off('contact:request', callback);
+    }, []);
+
+    const onContactAccepted = useCallback((callback: (event: ContactAcceptedEvent) => void) => {
+        if (!socketRef.current) return () => {};
+        socketRef.current.on('contact:accepted', callback);
+        return () => socketRef.current?.off('contact:accepted', callback);
+    }, []);
+
     return {
         socket: socketRef.current,
         sendMessage,
@@ -172,5 +211,7 @@ export const useWebSocket = (userId: string | null) => {
         onMessageError,
         onUserStatus,
         onUserTyping,
+        onContactRequest,
+        onContactAccepted,
     };
 };

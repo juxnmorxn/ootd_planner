@@ -503,6 +503,24 @@ app.post('/api/contacts/request', async (req, res) => {
     });
 
     console.log('[API] Contact request created:', id);
+    // Notificar en tiempo real al usuario que recibe la solicitud
+    try {
+      const fromUser = user
+        ? { id: user.id, username: user.username, profile_pic: user.profile_pic }
+        : null;
+      io.to(`user:${contact_id}`).emit('contact:request', {
+        id,
+        user_id,
+        contact_id,
+        status: 'pendiente',
+        created_at: now,
+        updated_at: now,
+        from_user: fromUser,
+      });
+    } catch (wsError) {
+      console.error('[Socket.io] Failed to emit contact:request:', wsError);
+    }
+
     res.json({ id, user_id, contact_id, status: 'pendiente', created_at: now, updated_at: now });
   } catch (error) {
     console.error('[API] Contacts request error:', error);
@@ -618,13 +636,52 @@ app.post('/api/contacts/accept', async (req, res) => {
       });
     }
 
-    const existingConversation = await getConversationByUsers(user_id, contact_id);
-    if (!existingConversation) {
+    let conversation = await getConversationByUsers(user_id, contact_id);
+    if (!conversation) {
       const convId = randomUUID();
       await turso.execute({
         sql: 'INSERT INTO conversations (id, user_id_1, user_id_2, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)',
         args: [convId, user_id, contact_id, now, now],
       });
+
+      const { rows } = await turso.execute({
+        sql: 'SELECT * FROM conversations WHERE id = ?1',
+        args: [convId],
+      });
+      conversation = rows[0];
+    }
+
+    // Notificar en tiempo real a ambos usuarios que ahora son contactos y tienen conversación
+    try {
+      const user = await getUserById(user_id);
+      const contactUser = await getUserById(contact_id);
+
+      const payloadForUser = {
+        user_id,
+        contact_id,
+        conversation_id: conversation.id,
+        created_at: conversation.created_at,
+        updated_at: conversation.updated_at,
+        other_user: contactUser
+          ? { id: contactUser.id, username: contactUser.username, profile_pic: contactUser.profile_pic }
+          : null,
+      };
+
+      const payloadForContact = {
+        user_id: contact_id,
+        contact_id: user_id,
+        conversation_id: conversation.id,
+        created_at: conversation.created_at,
+        updated_at: conversation.updated_at,
+        other_user: user
+          ? { id: user.id, username: user.username, profile_pic: user.profile_pic }
+          : null,
+      };
+
+      io.to(`user:${user_id}`).emit('contact:accepted', payloadForUser);
+      io.to(`user:${contact_id}`).emit('contact:accepted', payloadForContact);
+    } catch (wsError) {
+      console.error('[Socket.io] Failed to emit contact:accepted:', wsError);
     }
 
     res.json({ success: true });

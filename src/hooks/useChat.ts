@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ConversationWithData, MessageWithSender } from '../types';
-import { useWebSocket } from './useWebSocket';
+import { useWebSocket, ContactRequestEvent, ContactAcceptedEvent } from './useWebSocket';
 
 const API_URL = (() => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -73,6 +73,15 @@ export const useChat = (userId?: string) => {
             setUserStatuses((prev) => new Map(prev).set(status.userId, status.status));
         });
         return unsubscribe;
+    }, [webSocket]);
+
+    // Reexpone eventos de contactos para que otras pantallas puedan reaccionar
+    const onContactRequest = useCallback((callback: (event: ContactRequestEvent) => void) => {
+        return webSocket.onContactRequest(callback);
+    }, [webSocket]);
+
+    const onContactAccepted = useCallback((callback: (event: ContactAcceptedEvent) => void) => {
+        return webSocket.onContactAccepted(callback);
     }, [webSocket]);
 
     // Obtener conversaciones de un usuario
@@ -233,5 +242,7 @@ export const useChat = (userId?: string) => {
         markAsRead,
         markConversationAsRead,
         sendTypingIndicator,
+        onContactRequest,
+        onContactAccepted,
     };
 };

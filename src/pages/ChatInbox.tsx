@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Search, MessageCircle, ChevronDown, Users } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
 import { useContacts } from '../hooks/useContacts';
@@ -21,7 +21,7 @@ interface ChatInboxProps {
 type TabType = 'messages' | 'requests';
 
 export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
-    const { conversations, getConversations } = useChat(userId);
+    const { conversations, getConversations, onContactRequest, onContactAccepted } = useChat(userId);
     const { sendRequest } = useContacts();
     const { currentUser, setIsViewingIndividualChat } = useStore();
     
@@ -42,7 +42,7 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     }, [showChatView, isMobile, setIsViewingIndividualChat]);
 
     // Cargar solicitudes pendientes
-    const loadPendingRequests = async () => {
+    const loadPendingRequests = useCallback(async () => {
         setRequestsLoading(true);
         try {
             const response = await fetch(`${API_URL}/contacts/pending/${userId}`);
@@ -55,7 +55,7 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
         } finally {
             setRequestsLoading(false);
         }
-    };
+    }, [userId]);
 
     // Cargar chats y solicitudes pendientes
     useEffect(() => {
@@ -66,7 +66,26 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
             setLoading(false);
         };
         load();
-    }, [userId, getConversations]);
+    }, [userId, getConversations, loadPendingRequests]);
+
+    // Escuchar cambios de contactos en tiempo real (solicitudes nuevas y aceptaciones)
+    useEffect(() => {
+        const unsubscribeRequest = onContactRequest?.(() => {
+            // Nueva solicitud pendiente para este usuario
+            loadPendingRequests();
+        });
+
+        const unsubscribeAccepted = onContactAccepted?.(() => {
+            // Alguna solicitud fue aceptada: recargar solicitudes y conversaciones
+            loadPendingRequests();
+            getConversations(userId);
+        });
+
+        return () => {
+            if (unsubscribeRequest) unsubscribeRequest();
+            if (unsubscribeAccepted) unsubscribeAccepted();
+        };
+    }, [onContactRequest, onContactAccepted, loadPendingRequests, getConversations, userId]);
 
     // Buscar usuarios cuando escribe en la barra
     useEffect(() => {
