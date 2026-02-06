@@ -78,6 +78,7 @@ async function initDb() {
 
   // Migrar esquemas antiguos si es necesario (añadir option_index si falta)
   await migrateOutfitsTable();
+  await migrateMessagesTable();
   await migrateGarmentsTable();
 
   // ============ CHAT TABLES ============
@@ -136,6 +137,7 @@ async function initDb() {
       message_type TEXT DEFAULT 'text',
       read INTEGER DEFAULT 0,
       created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
       FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
     );
@@ -234,6 +236,31 @@ async function migrateOutfitsTable() {
     `);
   } catch (error) {
     console.error('[Turso] Outfits table migration error:', error);
+  }
+}
+
+// Migración defensiva para la tabla messages en Turso (añadir updated_at si no existe)
+async function migrateMessagesTable() {
+  try {
+    const { rows } = await turso.execute(`PRAGMA table_info(messages)`);
+    if (!rows || rows.length === 0) {
+      return; // tabla aún no existe
+    }
+
+    const names = new Set(rows.map((c) => c.name));
+
+    if (!names.has('updated_at')) {
+      await turso.execute('ALTER TABLE messages ADD COLUMN updated_at TEXT');
+
+      // Backfill: si hay registros viejos o NULL, usar created_at
+      await turso.execute(`
+        UPDATE messages
+        SET updated_at = COALESCE(updated_at, created_at, datetime('now'))
+        WHERE updated_at IS NULL OR updated_at = ''
+      `);
+    }
+  } catch (error) {
+    console.error('[Turso] Messages table migration error:', error);
   }
 }
 
@@ -749,15 +776,11 @@ app.get('/api/conversations/:userId', async (req, res) => {
       args: [userId],
     });
 
-    console.log(`[API] Found ${rows.length} conversations for user ${userId}`);
-
     const enriched = [];
 
     for (const conv of rows) {
       const otherUserId = conv.user_id_1 === userId ? conv.user_id_2 : conv.user_id_1;
       const otherUser = await getUserById(otherUserId);
-      
-      console.log(`[API] Conversation ${conv.id}: otherUserId=${otherUserId}, otherUser found=${!!otherUser}`);
 
       const { rows: messageRows } = await turso.execute({
         sql: 'SELECT * FROM messages WHERE conversation_id = ?1 ORDER BY created_at ASC',
@@ -780,7 +803,6 @@ app.get('/api/conversations/:userId', async (req, res) => {
       });
     }
 
-    console.log(`[API] Returning ${enriched.length} enriched conversations`);
     res.json(enriched);
   } catch (error) {
     console.error('[API] Conversations list error:', error);
@@ -1723,23 +1745,11 @@ initDb()
 
       // Message events
       socket.on('message:send', async (data) => {
-        console.log('[Socket.io] Received message:send event with data:', JSON.stringify(data, null, 2));
-        
         const { conversationId, senderId, recipientId, content } = data;
         
-        console.log('[Socket.io] Destructured values:');
-        console.log('  - conversationId:', conversationId, 'type:', typeof conversationId);
-        console.log('  - senderId:', senderId, 'type:', typeof senderId);
-        console.log('  - recipientId:', recipientId, 'type:', typeof recipientId);
-        console.log('  - content:', content, 'type:', typeof content, 'trimmed:', content?.trim());
-        
         if (!conversationId || !senderId || !recipientId || !content?.trim()) {
-          console.error('[Socket.io] Validation failed - Invalid message data:');
-          console.error('  - conversationId exists?', !!conversationId);
-          console.error('  - senderId exists?', !!senderId);
-          console.error('  - recipientId exists?', !!recipientId);
-          console.error('  - content exists and not empty?', !!(content?.trim()));
-          socket.emit('message:error', { error: 'Invalid message data', received: { conversationId, senderId, recipientId, content } });
+          console.error('[Socket.io] Invalid message data:', data);
+          socket.emit('message:error', { error: 'Invalid message data' });
           return;
         }
 

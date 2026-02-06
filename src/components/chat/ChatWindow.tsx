@@ -147,29 +147,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
     const otherUserStatus = userStatuses.get(recipientId);
     const isOtherUserTyping = typingUsers.has(recipientId);
 
-    // Validar que tenga datos necesarios
-    if (!recipientId || !conversationId) {
-        console.error('[ChatWindow] Missing required props:', { recipientId, conversationId, userId });
-        return (
-            <div className="chat-window error-state">
-                <div className="chat-header">
-                    {onBack && (
-                        <button
-                            type="button"
-                            className="chat-header-back"
-                            onClick={onBack}
-                        >
-                            <ArrowLeft size={24} />
-                        </button>
-                    )}
-                </div>
-                <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
-                    <p>Error: No se pudo cargar el chat. Datos faltantes: {!recipientId ? 'recipientId ' : ''}{!conversationId ? 'conversationId' : ''}</p>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div 
             className="chat-window"

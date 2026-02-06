@@ -45,11 +45,8 @@ export const useChat = (userId?: string) => {
     // Escuchar errores de mensajes
     useEffect(() => {
         const unsubscribe = webSocket.onMessageError((err) => {
-            const errorMessage = err.details || err.error || JSON.stringify(err);
-            console.error('[Chat] Message error - Main:', err.error);
-            console.error('[Chat] Message error - Details:', err.details);
-            console.error('[Chat] Message error - Full:', err);
-            setError(`Failed to send message: ${errorMessage}`);
+            console.error('[Chat] Message error:', err);
+            setError(`Failed to send message: ${err.error}`);
         });
         return unsubscribe;
     }, [webSocket]);
@@ -130,14 +127,7 @@ export const useChat = (userId?: string) => {
         }
 
         if (!conversationId || !senderId || !recipientId) {
-            const missing = [];
-            if (!conversationId) missing.push('conversationId');
-            if (!senderId) missing.push('senderId');
-            if (!recipientId) missing.push('recipientId');
-            const err = new Error(`Missing required message fields: ${missing.join(', ')}`);
-            console.error('[Chat] Validation error:', err);
-            setError(err.message);
-            throw err;
+            throw new Error('Missing required message fields');
         }
 
         try {
