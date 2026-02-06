@@ -9,7 +9,7 @@ import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs';
 import { schema } from './db-schema';
 import { UserModel, GarmentModel, OutfitModel } from './db-models';
 
-let watermelonDb: Database | null = null;
+let watermelonDb: any | null = null;
 let initialized = false;
 let isSyncing = false; // Flag para prevenir sincronización concurrente
 
@@ -28,7 +28,7 @@ async function initDatabase() {
       useIncrementalIndexedDB: true,
     });
 
-    watermelonDb = new Database({
+    watermelonDb = new (Database as any)({
       adapter,
       modelClasses: [UserModel, GarmentModel, OutfitModel],
     });
@@ -58,7 +58,7 @@ export async function getWatermelonDb() {
 async function processPendingImageUploads(userId: string, apiUrl: string) {
   try {
     const db = await getWatermelonDb();
-    const collection = db.get<GarmentModel>('garments');
+    const collection = db.get('garments') as any;
 
     // Obtener todas las prendas del usuario
     const allGarments = await collection.query().fetch() as any[];
@@ -131,7 +131,7 @@ export async function syncDatabase(userId: string, apiUrl: string) {
 
     await synchronize({
       database: db,
-      pullChanges: async ({ lastPulledAt }) => {
+      pullChanges: async ({ lastPulledAt }: { lastPulledAt: number | null }) => {
         // Traer cambios del servidor desde lastPulledAt
         const response = await fetch(`${apiUrl}/sync/pull`, {
           method: 'POST',
@@ -150,7 +150,7 @@ export async function syncDatabase(userId: string, apiUrl: string) {
         console.log('[WatermelonDB] Pulled changes:', changes);
         return { changes, timestamp };
       },
-      pushChanges: async ({ changes }) => {
+      pushChanges: async ({ changes }: { changes: any }) => {
         // Enviar cambios locales al servidor (con reintentos)
         let retries = 3;
         while (retries > 0) {

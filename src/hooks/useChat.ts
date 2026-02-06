@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ConversationWithData, MessageWithSender } from '../types';
-import { useWebSocket, ContactRequestEvent, ContactAcceptedEvent } from './useWebSocket';
+import { useWebSocket } from './useWebSocket';
+import type { ContactRequestEvent, ContactAcceptedEvent } from './useWebSocket';
 
 const API_URL = (() => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
