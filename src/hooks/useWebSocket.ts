@@ -115,31 +115,31 @@ export const useWebSocket = (userId: string | null) => {
 
     // Escuchar eventos
     const onMessageReceived = useCallback((callback: (message: WebSocketMessage) => void) => {
-        if (!socketRef.current) return;
+        if (!socketRef.current) return () => {};
         socketRef.current.on('message:received', callback);
         return () => socketRef.current?.off('message:received', callback);
     }, []);
 
     const onMessageSent = useCallback((callback: (data: { id: string; created_at: string }) => void) => {
-        if (!socketRef.current) return;
+        if (!socketRef.current) return () => {};
         socketRef.current.on('message:sent', callback);
         return () => socketRef.current?.off('message:sent', callback);
     }, []);
 
     const onMessageRead = useCallback((callback: (data: { messageId: string; userId: string }) => void) => {
-        if (!socketRef.current) return;
+        if (!socketRef.current) return () => {};
         socketRef.current.on('message:read', callback);
         return () => socketRef.current?.off('message:read', callback);
     }, []);
 
     const onUserStatus = useCallback((callback: (status: UserStatus) => void) => {
-        if (!socketRef.current) return;
+        if (!socketRef.current) return () => {};
         socketRef.current.on('user:status', callback);
         return () => socketRef.current?.off('user:status', callback);
     }, []);
 
     const onUserTyping = useCallback((callback: (typing: TypingIndicator) => void) => {
-        if (!socketRef.current) return;
+        if (!socketRef.current) return () => {};
         socketRef.current.on('user:typing', callback);
         return () => socketRef.current?.off('user:typing', callback);
     }, []);
