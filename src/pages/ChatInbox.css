@@ -1,0 +1,364 @@
+.chat-inbox {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    background: #f8fafc;
+}
+
+.inbox-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: white;
+}
+
+.inbox-header {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: white;
+}
+
+.inbox-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.inbox-search {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: white;
+}
+
+.search-wrapper {
+    display: flex;
+    align-items: center;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 0.6rem 1rem;
+    gap: 0.6rem;
+}
+
+.search-icon {
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.search-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 0.95rem;
+    color: #0f172a;
+    font-family: inherit;
+}
+
+.search-input::placeholder {
+    color: #94a3b8;
+}
+
+.inbox-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+/* Empty state */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 3rem 1rem;
+    color: #64748b;
+    text-align: center;
+}
+
+.empty-state svg {
+    color: #cbd5e1;
+    opacity: 0.6;
+}
+
+.empty-state p:first-of-type {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #475569;
+    margin: 0;
+}
+
+.empty-hint {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    margin: 0;
+}
+
+/* Chats list */
+.chats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.chat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.75rem;
+    margin: 0 0.5rem;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 0.2s;
+}
+
+.chat-item:hover {
+    background: #f1f5f9;
+}
+
+.chat-item.active {
+    background: #e0e7ff;
+}
+
+.chat-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.chat-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.chat-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chat-name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.chat-time {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.chat-message {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.unread-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    background: #2563eb;
+    color: white;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* Search results */
+.search-section {
+    padding: 0.5rem;
+}
+
+.section-title {
+    margin: 0.75rem 0.75rem 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 0.2s;
+}
+
+.search-result-item:hover {
+    background: #f1f5f9;
+}
+
+.result-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.result-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.result-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.result-name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.result-preview {
+    margin: 0.2rem 0 0;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.result-icon,
+.add-friend-btn {
+    color: #2563eb;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.add-friend-btn:hover {
+    background: #dbeafe;
+}
+
+.no-results {
+    text-align: center;
+    color: #94a3b8;
+    padding: 2rem 1rem;
+    margin: 0;
+}
+
+.loading {
+    text-align: center;
+    color: #94a3b8;
+    padding: 2rem 1rem;
+    margin: 0;
+}
+
+/* Chat detail pane (desktop) */
+.chat-detail-pane {
+    flex: 1.2;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-left: 1px solid #e2e8f0;
+}
+
+.no-chat-selected {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    height: 100%;
+    color: #cbd5e1;
+}
+
+.no-chat-selected svg {
+    opacity: 0.5;
+}
+
+.no-chat-selected p {
+    margin: 0;
+    color: #94a3b8;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .chat-inbox {
+        flex-direction: column;
+    }
+
+    .chat-detail-pane {
+        display: none;
+    }
+
+    .chat-avatar {
+        width: 44px;
+        height: 44px;
+    }
+
+    .chat-item {
+        margin: 0;
+        border-radius: 0;
+    }
+
+    .search-wrapper {
+        border-radius: 12px;
+    }
+
+    .inbox-header {
+        padding: 1rem 1rem;
+    }
+
+    .inbox-search {
+        padding: 0.5rem 1rem 1rem;
+    }
+}

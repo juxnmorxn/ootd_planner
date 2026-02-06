@@ -8,8 +8,7 @@ import { OutfitEditor } from './pages/OutfitEditor';
 import { Closet } from './pages/Closet';
 import { Profile } from './pages/Profile';
 import { BottomNav } from './components/layout/BottomNav';
-import { Chats } from './pages/Chats';
-import { Contacts } from './pages/Contacts';
+import { ChatInbox } from './pages/ChatInbox';
 import { Fondos } from './pages/Fondos';
 
 import { AdminUsers } from './pages/AdminUsers';
@@ -37,8 +36,7 @@ function App() {
     'closet',
     'profile',
     'admin-users',
-    'contacts',
-    'chats',
+    'chat-inbox',
     'fondos',
   ];
   const safeView = validViews.includes(view) ? view : 'auth';
@@ -181,13 +179,13 @@ function App() {
     setSelectedOutfitId(null);
   };
 
-  const handleNavigate = (item: 'calendar' | 'closet' | 'contacts' | 'settings') => {
+  const handleNavigate = (item: 'calendar' | 'closet' | 'chat-inbox' | 'settings') => {
     if (item === 'settings') {
       setView('profile');
       return;
     }
-    if (item === 'contacts') {
-      setView('contacts');
+    if (item === 'chat-inbox') {
+      setView('chat-inbox');
       return;
     }
     setView(item);
@@ -218,18 +216,18 @@ function App() {
     return <Auth onSuccess={handleAuthSuccess} />;
   }
 
-  // Show bottom nav for main views (calendar, clóset y contactos/chats)
+  // Show bottom nav for main views
   const showBottomNav =
-    safeView === 'calendar' || safeView === 'closet' || safeView === 'contacts' || safeView === 'chats';
+    safeView === 'calendar' || safeView === 'closet' || safeView === 'chat-inbox';
   const navActive = (
     safeView === 'calendar'
       ? 'calendar'
       : safeView === 'closet'
       ? 'closet'
-      : safeView === 'contacts' || safeView === 'chats'
-      ? 'contacts'
+      : safeView === 'chat-inbox'
+      ? 'chat-inbox'
       : 'calendar'
-  ) as 'calendar' | 'closet' | 'contacts';
+  ) as 'calendar' | 'closet' | 'chat-inbox';
 
   return (
     <div
@@ -258,16 +256,8 @@ function App() {
           <AdminUsers onBack={() => setView('profile')} />
         )}
 
-        {safeView === 'contacts' && (
-          <Contacts
-            userId={currentUser.id}
-          />
-        )}
-
-        {safeView === 'chats' && (
-          <Chats
-            userId={currentUser.id}
-          />
+        {safeView === 'chat-inbox' && (
+          <ChatInbox userId={currentUser.id} />
         )}
 
         {safeView === 'fondos' && (
