@@ -143,6 +143,12 @@ export const useWebSocket = (userId: string | null) => {
         return () => socketRef.current?.off('message:read', callback);
     }, []);
 
+    const onMessageError = useCallback((callback: (error: { error: string; details?: string }) => void) => {
+        if (!socketRef.current) return () => {};
+        socketRef.current.on('message:error', callback);
+        return () => socketRef.current?.off('message:error', callback);
+    }, []);
+
     const onUserStatus = useCallback((callback: (status: UserStatus) => void) => {
         if (!socketRef.current) return () => {};
         socketRef.current.on('user:status', callback);
@@ -163,6 +169,7 @@ export const useWebSocket = (userId: string | null) => {
         onMessageReceived,
         onMessageSent,
         onMessageRead,
+        onMessageError,
         onUserStatus,
         onUserTyping,
     };

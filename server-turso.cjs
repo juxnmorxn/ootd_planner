@@ -1690,24 +1690,68 @@ initDb()
       // User connects (sends userId)
       socket.on('user:connect', (userId) => {
         socket.data.userId = userId;
-        console.log(`[Socket.io] User authenticated: ${userId}`);
+        
+        // Unirse a room específico del usuario para mensajes dirigidos
+        socket.join(`user:${userId}`);
+        
+        console.log(`[Socket.io] User authenticated: ${userId}, Socket ID: ${socket.id}`);
+
+        // Notificar a otros que este usuario está online
+        io.emit('user:status', {
+          userId,
+          status: 'online',
+          timestamp: new Date().toISOString(),
+        });
       });
 
       // Message events
       socket.on('message:send', async (data) => {
         const { conversationId, senderId, recipientId, content } = data;
-        console.log(`[Socket.io] Message from ${senderId} to ${recipientId}: ${content.substring(0, 50)}`);
         
-        // Broadcast to recipient if connected
-        io.emit('message:received', {
-          id: randomUUID(),
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content,
-          message_type: 'text',
-          read: false,
-          created_at: new Date().toISOString(),
-        });
+        if (!conversationId || !senderId || !recipientId || !content?.trim()) {
+          console.error('[Socket.io] Invalid message data:', data);
+          socket.emit('message:error', { error: 'Invalid message data' });
+          return;
+        }
+
+        try {
+          const id = randomUUID();
+          const now = new Date().toISOString();
+
+          // 1. Guardar en BD PRIMERO
+          await turso.execute({
+            sql: 'INSERT INTO messages (id, conversation_id, sender_id, content, message_type, read, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)',
+            args: [id, conversationId, senderId, content.trim(), 'text', false, now, now],
+          });
+
+          console.log(`[Socket.io] Message saved to DB: ${id}`);
+
+          // 2. Enviar confirmación al remitente
+          socket.emit('message:sent', {
+            id,
+            created_at: now,
+            status: 'delivered',
+          });
+
+          // 3. Enviar al recipiente si está online
+          io.to(`user:${recipientId}`).emit('message:received', {
+            id,
+            conversation_id: conversationId,
+            sender_id: senderId,
+            content: content.trim(),
+            message_type: 'text',
+            read: false,
+            created_at: now,
+          });
+
+          console.log(`[Socket.io] Message delivered to recipient: ${recipientId}`);
+        } catch (error) {
+          console.error('[Socket.io] Error saving message:', error);
+          socket.emit('message:error', { 
+            error: 'Failed to save message',
+            details: error.message 
+          });
+        }
       });
 
       // Typing indicator
@@ -1721,12 +1765,35 @@ initDb()
       });
 
       // Mark message as read
-      socket.on('message:markAsRead', (data) => {
-        const { messageId, userId } = data;
-        io.emit('message:read', {
-          messageId,
-          userId,
-        });
+      socket.on('message:markAsRead', async (data) => {
+        const { messageId, conversationId, userId } = data;
+        
+        if (!messageId || !userId) {
+          console.error('[Socket.io] Invalid markAsRead data:', data);
+          return;
+        }
+
+        try {
+          const now = new Date().toISOString();
+          
+          // Actualizar en BD
+          await turso.execute({
+            sql: 'UPDATE messages SET read = 1, updated_at = ?1 WHERE id = ?2',
+            args: [now, messageId],
+          });
+
+          console.log(`[Socket.io] Message marked as read: ${messageId}`);
+
+          // Notificar al remitente
+          io.emit('message:read', {
+            messageId,
+            conversationId,
+            userId,
+            readAt: now,
+          });
+        } catch (error) {
+          console.error('[Socket.io] Error marking message as read:', error);
+        }
       });
 
       // Disconnect

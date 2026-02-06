@@ -28,6 +28,29 @@ export const useChat = (userId?: string) => {
         return unsubscribe;
     }, [webSocket]);
 
+    // Escuchar confirmación de mensajes enviados
+    useEffect(() => {
+        const unsubscribe = webSocket.onMessageSent((data) => {
+            console.log('[Chat] Message confirmed sent:', data);
+            // Actualizar el estado local si es necesario
+            setCurrentMessages((prev) => 
+                prev.map((msg) => 
+                    msg.id === 'pending' ? { ...msg, id: data.id, created_at: data.created_at, status: 'delivered' } : msg
+                )
+            );
+        });
+        return unsubscribe;
+    }, [webSocket]);
+
+    // Escuchar errores de mensajes
+    useEffect(() => {
+        const unsubscribe = webSocket.onMessageError((err) => {
+            console.error('[Chat] Message error:', err);
+            setError(`Failed to send message: ${err.error}`);
+        });
+        return unsubscribe;
+    }, [webSocket]);
+
     // Escuchar indicadores de escritura
     useEffect(() => {
         const unsubscribe = webSocket.onUserTyping((typing) => {
@@ -87,31 +110,69 @@ export const useChat = (userId?: string) => {
     // Enviar mensaje (ahora usa WebSocket)
     const sendMessage = useCallback(async (conversationId: string, senderId: string, recipientId: string, content: string) => {
         setError(null);
+        
+        // Validar entrada
+        if (!content || !content.trim()) {
+            throw new Error('Message content cannot be empty');
+        }
+
+        if (!conversationId || !senderId || !recipientId) {
+            throw new Error('Missing required message fields');
+        }
+
         try {
-            // Enviar por WebSocket si está conectado, sino por HTTP
+            const contentTrimmed = content.trim();
+            const messageData = {
+                conversationId,
+                senderId,
+                recipientId,
+                content: contentTrimmed,
+            };
+
+            console.log('[Chat] Sending message:', messageData);
+
+            // Usar WebSocket si está conectado
             if (webSocket.socket?.connected) {
-                webSocket.sendMessage(conversationId, senderId, recipientId, content);
-                return { id: 'pending', created_at: new Date().toISOString() };
+                // Enviar por WebSocket
+                webSocket.sendMessage(conversationId, senderId, recipientId, contentTrimmed);
+                
+                // Retornar optimista - será confirmado por message:sent
+                return { 
+                    id: 'pending', 
+                    created_at: new Date().toISOString(),
+                    status: 'sending'
+                };
             } else {
-                // Fallback a HTTP
+                // Fallback a HTTP con reintentos
+                console.warn('[Chat] WebSocket not connected, using HTTP fallback');
+                
                 const response = await fetch(`${API_URL}/messages`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         conversation_id: conversationId,
                         sender_id: senderId,
-                        content,
+                        content: contentTrimmed,
                         message_type: 'text',
                     }),
                 });
 
-                if (!response.ok) throw new Error('Failed to send message');
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP ${response.status}: Failed to send message`);
+                }
+                
                 const newMessage = await response.json();
+                console.log('[Chat] Message sent via HTTP:', newMessage);
+                
+                // Agregar a la lista local
                 setCurrentMessages((prev) => [...prev, newMessage]);
                 return newMessage;
             }
         } catch (err: any) {
-            setError(err.message);
+            const errorMsg = err.message || 'Failed to send message';
+            console.error('[Chat] sendMessage error:', errorMsg);
+            setError(errorMsg);
             throw err;
         }
     }, [webSocket]);
