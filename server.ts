@@ -5,9 +5,22 @@ import { db } from './src/lib/sqlite-db';
 import type { Garment, Outfit, User, Contact, Conversation, Message } from './src/types';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadImageToCloudinary } from './src/lib/cloudinary';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"],
+    }
+});
+
 const PORT = 3001;
+
+// Mapa para rastrear usuarios conectados: userId -> socketId
+const connectedUsers = new Map<string, string>();
 
 // Middleware
 app.use(cors());
@@ -702,6 +715,96 @@ async function removeBackgroundViaRembg(imageData: string): Promise<string> {
 }
 
 // Start server
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
     console.log(`[API Server] Running on http://localhost:${PORT}`);
+});
+
+// ============ WEBSOCKETS ============
+
+io.on('connection', (socket) => {
+    console.log(`[WS] User connected: ${socket.id}`);
+
+    // Cuando un usuario se conecta, asocia su userId al socket
+    socket.on('user:connect', (userId: string) => {
+        connectedUsers.set(userId, socket.id);
+        console.log(`[WS] User ${userId} is online`);
+        
+        // Notificar a otros usuarios que este usuario está online
+        io.emit('user:status', { userId, status: 'online' });
+    });
+
+    // Enviar mensaje en tiempo real
+    socket.on('message:send', (data: {
+        conversationId: string;
+        senderId: string;
+        recipientId: string;
+        content: string;
+    }) => {
+        // Guardar en BD
+        const message: Message = {
+            id: uuidv4(),
+            conversation_id: data.conversationId,
+            sender_id: data.senderId,
+            content: data.content,
+            message_type: 'text',
+            read: false,
+            created_at: new Date().toISOString(),
+        };
+
+        db.createMessage(message);
+
+        // Enviar a ambos usuarios en la conversación
+        const recipientSocketId = connectedUsers.get(data.recipientId);
+        if (recipientSocketId) {
+            io.to(recipientSocketId).emit('message:received', message);
+        }
+
+        // Confirmar al remitente
+        socket.emit('message:sent', { id: message.id, created_at: message.created_at });
+    });
+
+    // Indicador de "escribiendo"
+    socket.on('user:typing', (data: {
+        conversationId: string;
+        userId: string;
+        recipientId: string;
+        isTyping: boolean;
+    }) => {
+        const recipientSocketId = connectedUsers.get(data.recipientId);
+        if (recipientSocketId) {
+            io.to(recipientSocketId).emit('user:typing', {
+                userId: data.userId,
+                isTyping: data.isTyping,
+                conversationId: data.conversationId,
+            });
+        }
+    });
+
+    // Marcar mensaje como leído
+    socket.on('message:markAsRead', (data: {
+        messageId: string;
+        conversationId: string;
+        userId: string;
+    }) => {
+        db.markMessageAsRead(data.messageId);
+        
+        // Notificar al remitente original
+        io.emit('message:read', {
+            messageId: data.messageId,
+            userId: data.userId,
+        });
+    });
+
+    // Desconexión
+    socket.on('disconnect', () => {
+        // Encontrar el userId asociado a este socket
+        for (const [userId, socketId] of connectedUsers.entries()) {
+            if (socketId === socket.id) {
+                connectedUsers.delete(userId);
+                console.log(`[WS] User ${userId} is offline`);
+                io.emit('user:status', { userId, status: 'offline', timestamp: new Date().toISOString() });
+                break;
+            }
+        }
+    });
 });

@@ -12,12 +12,39 @@
     padding: 0.9rem 1.1rem;
     border-bottom: 1px solid #111827;
     background: #020617;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.chat-header-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
 }
 
 .chat-header h2 {
     margin: 0;
     color: #f9fafb;
     font-size: 1.2rem;
+}
+
+.chat-header-status {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.status-online {
+    color: #10b981;
+}
+
+.status-offline {
+    color: #6b7280;
 }
 
 .messages-container {
@@ -146,5 +173,40 @@
 
     .chat-header h2 {
         font-size: 1rem;
+    }
+}
+
+/* Indicador de "escribiendo" */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.7rem 0.95rem;
+}
+
+.typing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #9ca3af;
+    animation: typing 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.5;
+    }
+    30% {
+        transform: translateY(-10px);
+        opacity: 1;
     }
 }

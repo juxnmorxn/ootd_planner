@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ConversationWithData, MessageWithSender } from '../types';
+import { useWebSocket } from './useWebSocket';
 
 const API_URL = (() => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -8,11 +9,48 @@ const API_URL = (() => {
     return '/api';
 })();
 
-export const useChat = () => {
+export const useChat = (userId?: string) => {
     const [conversations, setConversations] = useState<ConversationWithData[]>([]);
     const [currentMessages, setCurrentMessages] = useState<MessageWithSender[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+    const [userStatuses, setUserStatuses] = useState<Map<string, 'online' | 'offline'>>(new Map());
+
+    const webSocket = useWebSocket(userId || null);
+
+    // Escuchar mensajes recibidos
+    useEffect(() => {
+        const unsubscribe = webSocket.onMessageReceived((message) => {
+            console.log('[Chat] Message received via WS:', message);
+            setCurrentMessages((prev) => [...prev, message]);
+        });
+        return unsubscribe;
+    }, [webSocket]);
+
+    // Escuchar indicadores de escritura
+    useEffect(() => {
+        const unsubscribe = webSocket.onUserTyping((typing) => {
+            setTypingUsers((prev) => {
+                const newSet = new Set(prev);
+                if (typing.isTyping) {
+                    newSet.add(typing.userId);
+                } else {
+                    newSet.delete(typing.userId);
+                }
+                return newSet;
+            });
+        });
+        return unsubscribe;
+    }, [webSocket]);
+
+    // Escuchar estado de usuarios
+    useEffect(() => {
+        const unsubscribe = webSocket.onUserStatus((status) => {
+            setUserStatuses((prev) => new Map(prev).set(status.userId, status.status));
+        });
+        return unsubscribe;
+    }, [webSocket]);
 
     // Obtener conversaciones de un usuario
     const getConversations = async (userId: string) => {
@@ -46,27 +84,32 @@ export const useChat = () => {
         }
     };
 
-    // Enviar mensaje
-    const sendMessage = async (conversationId: string, senderId: string, content: string) => {
+    // Enviar mensaje (ahora usa WebSocket)
+    const sendMessage = async (conversationId: string, senderId: string, recipientId: string, content: string) => {
         setError(null);
         try {
-            const response = await fetch(`${API_URL}/messages`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    conversation_id: conversationId,
-                    sender_id: senderId,
-                    content,
-                    message_type: 'text',
-                }),
-            });
+            // Enviar por WebSocket si está conectado, sino por HTTP
+            if (webSocket.socket?.connected) {
+                webSocket.sendMessage(conversationId, senderId, recipientId, content);
+                return { id: 'pending', created_at: new Date().toISOString() };
+            } else {
+                // Fallback a HTTP
+                const response = await fetch(`${API_URL}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        conversation_id: conversationId,
+                        sender_id: senderId,
+                        content,
+                        message_type: 'text',
+                    }),
+                });
 
-            if (!response.ok) throw new Error('Failed to send message');
-            const newMessage = await response.json();
-
-            // Agregar mensaje a la lista
-            setCurrentMessages((prev) => [...prev, newMessage]);
-            return newMessage;
+                if (!response.ok) throw new Error('Failed to send message');
+                const newMessage = await response.json();
+                setCurrentMessages((prev) => [...prev, newMessage]);
+                return newMessage;
+            }
         } catch (err: any) {
             setError(err.message);
             throw err;
@@ -74,11 +117,15 @@ export const useChat = () => {
     };
 
     // Marcar mensaje como leído
-    const markAsRead = async (messageId: string) => {
+    const markAsRead = async (messageId: string, conversationId: string, userId: string) => {
         try {
-            await fetch(`${API_URL}/messages/${messageId}/read`, {
-                method: 'PUT',
-            });
+            if (webSocket.socket?.connected) {
+                webSocket.markMessageAsRead(messageId, conversationId, userId);
+            } else {
+                await fetch(`${API_URL}/messages/${messageId}/read`, {
+                    method: 'PUT',
+                });
+            }
         } catch (err: any) {
             console.error('Failed to mark message as read:', err);
         }
@@ -95,15 +142,25 @@ export const useChat = () => {
         }
     };
 
+    // Indicador de escribiendo
+    const sendTypingIndicator = (conversationId: string, userId: string, recipientId: string, isTyping: boolean) => {
+        if (webSocket.socket?.connected) {
+            webSocket.sendTypingIndicator(conversationId, userId, recipientId, isTyping);
+        }
+    };
+
     return {
         conversations,
         currentMessages,
         loading,
         error,
+        typingUsers,
+        userStatuses,
         getConversations,
         getMessages,
         sendMessage,
         markAsRead,
         markConversationAsRead,
+        sendTypingIndicator,
     };
 };

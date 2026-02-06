@@ -9,7 +9,7 @@ interface ChatsPageProps {
 }
 
 export const Chats: React.FC<ChatsPageProps> = ({ userId }) => {
-    const { conversations, getConversations } = useChat();
+    const { conversations, getConversations } = useChat(userId);
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
@@ -25,9 +25,9 @@ export const Chats: React.FC<ChatsPageProps> = ({ userId }) => {
 
         loadConversations();
 
-        // Poll cada 3 segundos para actualizar
-        const interval = setInterval(loadConversations, 3000);
-        return () => clearInterval(interval);
+        // Ya no necesitamos polling con WebSockets, pero lo dejamos como fallback
+        // const interval = setInterval(loadConversations, 10000);
+        // return () => clearInterval(interval);
     }, [userId]);
 
     // Detectar si es vista móvil para cambiar el layout (lista -> detalle full-screen)
@@ -68,6 +68,7 @@ export const Chats: React.FC<ChatsPageProps> = ({ userId }) => {
                     <ChatWindow
                         conversationId={selectedConversation.id}
                         userId={userId}
+                        recipientId={selectedConversation.other_user?.id || ''}
                         otherUsername={selectedConversation.other_user?.username || 'Usuario'}
                         onBack={() => setSelectedConversationId(null)}
                     />
@@ -122,6 +123,7 @@ export const Chats: React.FC<ChatsPageProps> = ({ userId }) => {
                     <ChatWindow
                         conversationId={selectedConversation.id}
                         userId={userId}
+                        recipientId={selectedConversation.other_user?.id || ''}
                         otherUsername={selectedConversation.other_user?.username || 'Usuario'}
                     />
                 ) : (

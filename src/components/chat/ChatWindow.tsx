@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import './ChatWindow.css';
@@ -6,49 +6,72 @@ import './ChatWindow.css';
 interface ChatWindowProps {
     conversationId: string;
     userId: string;
+    recipientId: string;
     otherUsername: string;
     onBack?: () => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, otherUsername, onBack }) => {
-    const { currentMessages, getMessages, sendMessage, markConversationAsRead } = useChat();
+export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, recipientId, otherUsername, onBack }) => {
+    const { currentMessages, getMessages, sendMessage, markConversationAsRead, sendTypingIndicator, typingUsers, userStatuses } = useChat(userId);
     const [messageContent, setMessageContent] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         getMessages(conversationId);
         markConversationAsRead(conversationId);
-
-        // Poll para nuevos mensajes cada 2 segundos
-        const interval = setInterval(() => {
-            getMessages(conversationId);
-        }, 2000);
-
-        return () => clearInterval(interval);
     }, [conversationId]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [currentMessages]);
+    }, [currentMessages, typingUsers]);
+
+    const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setMessageContent(value);
+
+        // Indicador de escribiendo
+        const nowTyping = value.length > 0;
+        if (nowTyping !== isTyping) {
+            setIsTyping(nowTyping);
+            sendTypingIndicator(conversationId, userId, recipientId, nowTyping);
+        }
+
+        // Resetear timeout para "dejó de escribir"
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        if (nowTyping) {
+            typingTimeoutRef.current = setTimeout(() => {
+                setIsTyping(false);
+                sendTypingIndicator(conversationId, userId, recipientId, false);
+            }, 2000);
+        }
+    };
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!messageContent.trim()) return;
 
         setLoading(true);
+        setIsTyping(false);
+        sendTypingIndicator(conversationId, userId, recipientId, false);
+
         try {
-            await sendMessage(conversationId, userId, messageContent.trim());
+            await sendMessage(conversationId, userId, recipientId, messageContent.trim());
             setMessageContent('');
-            setTimeout(() => {
-                getMessages(conversationId);
-            }, 100);
         } catch (error) {
             console.error('Error sending message:', error);
         } finally {
             setLoading(false);
         }
     };
+
+    const otherUserStatus = userStatuses.get(recipientId);
+    const isOtherUserTyping = typingUsers.has(recipientId);
 
     return (
         <div className="chat-window">
@@ -62,7 +85,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
                         <ArrowLeft size={20} />
                     </button>
                 )}
-                <h2>{otherUsername}</h2>
+                <div className="chat-header-info">
+                    <h2>{otherUsername}</h2>
+                    <p className="chat-header-status">
+                        {otherUserStatus === 'online' ? (
+                            <span className="status-online">● En línea</span>
+                        ) : (
+                            <span className="status-offline">● Desconectado</span>
+                        )}
+                    </p>
+                </div>
             </div>
 
             <div className="messages-container">
@@ -85,6 +117,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
                         </div>
                     ))
                 )}
+
+                {isOtherUserTyping && (
+                    <div className="message typing-indicator">
+                        <div className="typing-dot"></div>
+                        <div className="typing-dot"></div>
+                        <div className="typing-dot"></div>
+                    </div>
+                )}
+
                 <div ref={messagesEndRef} />
             </div>
 
@@ -93,7 +134,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
                     type="text"
                     placeholder="Escribe un mensaje..."
                     value={messageContent}
-                    onChange={(e) => setMessageContent(e.target.value)}
+                    onChange={handleMessageChange}
                     disabled={loading}
                 />
                 <button type="submit" disabled={loading || !messageContent.trim()}>
