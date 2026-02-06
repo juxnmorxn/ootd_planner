@@ -5,9 +5,18 @@ const cloudinary = require('cloudinary').v2;
 const path = require('path');
 const { randomUUID } = require('crypto');
 const { createClient } = require('@libsql/client');
+const http = require('http');
+const { Server: SocketIOServer } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+});
 const PORT = process.env.PORT || 3001;
 
 // === Turso client ===
@@ -1666,7 +1675,64 @@ app.get(/^(?!\/api).*/, (req, res) => {
 // Start server after DB init
 initDb()
   .then(() => {
-    app.listen(PORT, () => {
+    // Socket.io event handlers
+    io.on('connection', (socket) => {
+      console.log(`[Socket.io] User connected: ${socket.id}`);
+
+      // User connects (sends userId)
+      socket.on('user:connect', (userId) => {
+        socket.data.userId = userId;
+        console.log(`[Socket.io] User authenticated: ${userId}`);
+      });
+
+      // Message events
+      socket.on('message:send', async (data) => {
+        const { conversationId, senderId, recipientId, content } = data;
+        console.log(`[Socket.io] Message from ${senderId} to ${recipientId}: ${content.substring(0, 50)}`);
+        
+        // Broadcast to recipient if connected
+        io.emit('message:received', {
+          id: randomUUID(),
+          conversation_id: conversationId,
+          sender_id: senderId,
+          content,
+          message_type: 'text',
+          read: false,
+          created_at: new Date().toISOString(),
+        });
+      });
+
+      // Typing indicator
+      socket.on('user:typing', (data) => {
+        const { conversationId, userId, recipientId, isTyping } = data;
+        io.emit('user:typing', {
+          userId,
+          isTyping,
+          conversationId,
+        });
+      });
+
+      // Mark message as read
+      socket.on('message:markAsRead', (data) => {
+        const { messageId, userId } = data;
+        io.emit('message:read', {
+          messageId,
+          userId,
+        });
+      });
+
+      // Disconnect
+      socket.on('disconnect', () => {
+        console.log(`[Socket.io] User disconnected: ${socket.id}`);
+        io.emit('user:status', {
+          userId: socket.data.userId,
+          status: 'offline',
+          timestamp: new Date().toISOString(),
+        });
+      });
+    });
+
+    server.listen(PORT, () => {
       console.log(`[Turso API Server] Running on http://localhost:${PORT}`);
     });
   })
