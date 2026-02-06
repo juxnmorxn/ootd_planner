@@ -22,6 +22,7 @@ function App() {
   const setCurrentUser = useStore((state) => state.setCurrentUser);
   const view = useStore((state) => state.currentView);
   const setView = useStore((state) => state.setCurrentView);
+  const isViewingIndividualChat = useStore((state) => state.isViewingIndividualChat);
 
   // Saber si el store persistido (localStorage) ya se rehidrató
   const hasHydrated = (useStore as any).persist?.hasHydrated
@@ -218,7 +219,7 @@ function App() {
 
   // Show bottom nav for main views
   const showBottomNav =
-    safeView === 'calendar' || safeView === 'closet' || safeView === 'chat-inbox';
+    !isViewingIndividualChat && (safeView === 'calendar' || safeView === 'closet' || safeView === 'chat-inbox');
   const navActive = (
     safeView === 'calendar'
       ? 'calendar'

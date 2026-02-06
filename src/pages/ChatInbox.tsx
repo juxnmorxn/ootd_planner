@@ -23,7 +23,7 @@ type TabType = 'messages' | 'requests';
 export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     const { conversations, getConversations } = useChat(userId);
     const { sendRequest } = useContacts();
-    const { currentUser } = useStore();
+    const { currentUser, setIsViewingIndividualChat } = useStore();
     
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -35,6 +35,11 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     const [searchUsers, setSearchUsers] = useState<User[]>([]);
     const [friendRequests, setFriendRequests] = useState<any[]>([]);
     const [requestsLoading, setRequestsLoading] = useState(false);
+
+    // Control bottom nav visibility when opening/closing individual chat
+    useEffect(() => {
+        setIsViewingIndividualChat(showChatView && isMobile);
+    }, [showChatView, isMobile, setIsViewingIndividualChat]);
 
     // Cargar solicitudes pendientes
     const loadPendingRequests = async () => {

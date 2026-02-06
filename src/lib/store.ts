@@ -30,6 +30,10 @@ interface AppState {
             | 'fondos'
     ) => void;
 
+    // Chat state: whether individual chat is open (hides BottomNav)
+    isViewingIndividualChat: boolean;
+    setIsViewingIndividualChat: (isViewing: boolean) => void;
+
     // Active outfit being edited
     activeOutfit: {
         id: string | null;
@@ -64,11 +68,16 @@ export const useStore = create<AppState>()(
                 currentView: 'auth',
                 activeOutfit: { id: null, date: null, layers: [] },
                 currentChatTargetUserId: null,
+                isViewingIndividualChat: false,
             }),
 
             // Current view
             currentView: 'auth',
             setCurrentView: (view) => set({ currentView: view }),
+
+            // Chat state: whether viewing individual chat
+            isViewingIndividualChat: false,
+            setIsViewingIndividualChat: (isViewing) => set({ isViewingIndividualChat: isViewing }),
 
             // Active outfit
             activeOutfit: {
@@ -143,6 +152,7 @@ export const useStore = create<AppState>()(
                 // Persist session and current view
                 currentUser: state.currentUser,
                 currentView: state.currentView,
+                isViewingIndividualChat: false, // Reset on refresh
             }),
         }
     )
