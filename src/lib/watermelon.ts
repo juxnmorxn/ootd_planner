@@ -11,6 +11,7 @@ import { UserModel, GarmentModel, OutfitModel } from './db-models';
 
 let watermelonDb: Database | null = null;
 let initialized = false;
+let isSyncing = false; // Flag para prevenir sincronización concurrente
 
 // Lazy initialization - solo cuando se use
 async function initDatabase() {
@@ -112,6 +113,14 @@ async function processPendingImageUploads(userId: string, apiUrl: string) {
  * Se llama cuando hay conexión a internet
  */
 export async function syncDatabase(userId: string, apiUrl: string) {
+  // Prevenir sincronización concurrente
+  if (isSyncing) {
+    console.log('[WatermelonDB] Sync already in progress, skipping...');
+    return;
+  }
+
+  isSyncing = true;
+
   try {
     console.log('[WatermelonDB] Starting sync...');
 
@@ -179,6 +188,8 @@ export async function syncDatabase(userId: string, apiUrl: string) {
     window.dispatchEvent(new CustomEvent('sync-complete', { detail: { timestamp: Date.now() } }));
   } catch (error) {
     console.error('[WatermelonDB] Sync failed:', error);
+  } finally {
+    isSyncing = false; // Siempre resetear el flag
   }
 }
 

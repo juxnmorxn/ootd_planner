@@ -31,7 +31,16 @@ export const useWebSocket = (userId: string | null) => {
     useEffect(() => {
         if (!userId) return;
 
-        const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3001', {
+        // Determinar la URL del servidor
+        let socketUrl: string;
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            socketUrl = 'http://localhost:3001';
+        } else {
+            // En producción, usar el mismo dominio (Render)
+            socketUrl = window.location.origin;
+        }
+
+        const socket = io(socketUrl, {
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
