@@ -18,6 +18,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const touchStartXRef = useRef<number>(0);
+    const touchStartTimeRef = useRef<number>(0);
 
     useEffect(() => {
         getMessages(conversationId);
@@ -27,6 +29,23 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [currentMessages, typingUsers]);
+
+    // Detectar swipe hacia la izquierda (gesto nativo)
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStartXRef.current = e.touches[0].clientX;
+        touchStartTimeRef.current = Date.now();
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchDuration = Date.now() - touchStartTimeRef.current;
+        const swipeDistance = touchStartXRef.current - touchEndX;
+
+        // Si desliza más de 50px hacia la izquierda en menos de 500ms = swipe atrás
+        if (swipeDistance > 50 && touchDuration < 500 && onBack) {
+            onBack();
+        }
+    };
 
     const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -74,13 +93,18 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
     const isOtherUserTyping = typingUsers.has(recipientId);
 
     return (
-        <div className="chat-window">
+        <div 
+            className="chat-window"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+        >
             <div className="chat-header">
                 {onBack && (
                     <button
                         type="button"
                         className="chat-header-back"
                         onClick={onBack}
+                        title="Atrás (también puedes deslizar)"
                     >
                         <ArrowLeft size={20} />
                     </button>
