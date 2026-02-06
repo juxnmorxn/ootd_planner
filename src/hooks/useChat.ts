@@ -153,15 +153,26 @@ export const useChat = (userId?: string) => {
 
             // Usar WebSocket si está conectado
             if (webSocket.socket?.connected) {
+                const now = new Date().toISOString();
+
+                // Mensaje optimista para que aparezca INMEDIATAMENTE en la UI
+                const pendingMessage: MessageWithSender = {
+                    id: 'pending',
+                    conversation_id: conversationId,
+                    sender_id: senderId,
+                    content: contentTrimmed,
+                    message_type: 'text',
+                    read: false,
+                    created_at: now,
+                };
+
+                setCurrentMessages((prev) => [...prev, pendingMessage]);
+
                 // Enviar por WebSocket
                 webSocket.sendMessage(conversationId, senderId, recipientId, contentTrimmed);
                 
                 // Retornar optimista - será confirmado por message:sent
-                return { 
-                    id: 'pending', 
-                    created_at: new Date().toISOString(),
-                    status: 'sending'
-                };
+                return pendingMessage;
             } else {
                 // Fallback a HTTP con reintentos
                 console.warn('[Chat] WebSocket not connected, using HTTP fallback');
