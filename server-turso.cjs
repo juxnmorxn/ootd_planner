@@ -816,16 +816,22 @@ app.post('/api/messages', async (req, res) => {
   try {
     const { conversation_id, sender_id, content, message_type } = req.body;
 
-    if (!conversation_id || !sender_id || !content) {
+    console.log('[API] POST /messages:', { conversation_id, sender_id, content: content?.substring(0, 50) });
+
+    // Validación de entrada
+    if (!conversation_id || !sender_id || !content?.trim()) {
+      console.error('[API] Invalid message data');
       return res.status(400).json({ error: 'conversation_id, sender_id y content requeridos' });
     }
 
     const conversation = await getConversationById(conversation_id);
     if (!conversation) {
+      console.error('[API] Conversation not found:', conversation_id);
       return res.status(404).json({ error: 'Conversación no encontrada' });
     }
 
     if (conversation.user_id_1 !== sender_id && conversation.user_id_2 !== sender_id) {
+      console.error('[API] Unauthorized message sender:', sender_id);
       return res.status(403).json({ error: 'No tienes permiso para enviar mensajes en esta conversación' });
     }
 
@@ -837,15 +843,17 @@ app.post('/api/messages', async (req, res) => {
 
     const contact = contactRows[0];
     if (!contact || contact.status !== 'aceptado') {
+      console.error('[API] Contact not accepted:', sender_id, otherUserId);
       return res.status(403).json({ error: 'No puedes enviar mensajes a este usuario' });
     }
 
     const now = new Date().toISOString();
     const messageId = randomUUID();
 
+    // Guardar con timestamp updated_at para sincronización
     await turso.execute({
-      sql: 'INSERT INTO messages (id, conversation_id, sender_id, content, message_type, read, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
-      args: [messageId, conversation_id, sender_id, content, message_type || 'text', 0, now],
+      sql: 'INSERT INTO messages (id, conversation_id, sender_id, content, message_type, read, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)',
+      args: [messageId, conversation_id, sender_id, content.trim(), message_type || 'text', 0, now, now],
     });
 
     await turso.execute({
@@ -853,11 +861,19 @@ app.post('/api/messages', async (req, res) => {
       args: [now, conversation_id],
     });
 
-    res.json({
+    const newMessage = {
       id: messageId,
       conversation_id,
       sender_id,
-      content,
+      content: content.trim(),
+      message_type: message_type || 'text',
+      read: false,
+      created_at: now,
+      updated_at: now,
+    };
+
+    console.log('[API] Message saved successfully:', messageId);
+    res.json(newMessage);
       message_type: message_type || 'text',
       read: 0,
       created_at: now,

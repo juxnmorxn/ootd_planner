@@ -91,17 +91,27 @@ export const useChat = (userId?: string) => {
         }
     }, []);
 
-    // Obtener mensajes de una conversación
+    // Obtener mensajes de una conversación (con sincronización garantizada)
     const getMessages = useCallback(async (conversationId: string) => {
         setLoading(true);
         setError(null);
         try {
+            console.log('[Chat] Fetching messages for conversation:', conversationId);
+            
             const response = await fetch(`${API_URL}/conversations/${conversationId}/messages`);
-            if (!response.ok) throw new Error('Failed to fetch messages');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch messages: HTTP ${response.status}`);
+            }
+            
             const data = await response.json();
-            setCurrentMessages(data);
+            console.log(`[Chat] Fetched ${data.length} messages from server`, data);
+            
+            // Sincronizar: eliminar duplicados locales que ya están en el servidor
+            setCurrentMessages(data || []);
         } catch (err: any) {
+            console.error('[Chat] getMessages error:', err.message);
             setError(err.message);
+            throw err;
         } finally {
             setLoading(false);
         }

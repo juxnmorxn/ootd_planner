@@ -72,9 +72,18 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
     }, []);
 
     useEffect(() => {
+        console.log('[ChatWindow] Conversation opened, fetching messages:', conversationId);
         getMessages(conversationId);
         markConversationAsRead(conversationId);
-    }, [conversationId]);
+        
+        // Sincronizar cada 10 segundos para garantizar que no se pierda ningún mensaje
+        const syncInterval = setInterval(() => {
+            console.log('[ChatWindow] Auto-syncing messages...');
+            getMessages(conversationId);
+        }, 10000);
+        
+        return () => clearInterval(syncInterval);
+    }, [conversationId, getMessages, markConversationAsRead]);
 
     // Detectar swipe hacia la izquierda (gesto nativo)
     const handleTouchStart = (e: React.TouchEvent) => {
