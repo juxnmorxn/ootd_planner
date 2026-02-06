@@ -19,8 +19,7 @@
 | ✏️ **Outfit Editor** | ✅ Completa | Editor visual de outfits (drag & drop, z-index) |
 | 👤 **Profile** | ✅ Completa | Perfil del usuario actual |
 | ⭐ **Fondos** | ✅ Completa | Galería de fondos/backgrounds |
-| 👥 **Contacts** | ⚠️ Parcial | Búsqueda de usuarios, solicitudes de amistad (estructura lista) |
-| 💬 **Chats** | ⚠️ Parcial | Vista de conversaciones, chat individual (estructura lista) |
+| � **Chat Inbox** | ✅ NUEVA | Inbox unificado: búsqueda + chats + usuarios para agregar |
 | 🔑 **AdminUsers** | ✅ Completa | Gestión de usuarios (admin) |
 
 ---
@@ -142,58 +141,60 @@ Crear sesión + localStorage
 
 ### 2️⃣ **Flujo Principal (Post-Login)**
 ```
-BottomNav (5 tabs)
+BottomNav (4 tabs)
 ├── 📅 Calendar → Visualizar outfits por día
 ├── 👕 Closet → Gestionar prendas
-├── ✏️ Outfit Editor → Crear/editar outfits
-├── 👥 Contacts → Búsqueda y amistad
-└── 💬 Chats → Mensajería
+├── 💬 Mensajes → Chat Inbox Unificado
+└── 👤 Perfil → Configuración y logout
 ```
 
-### 3️⃣ **Flujo de Contactos/Amistad**
+### 3️⃣ **Flujo de Chat Inbox Unificado** (NUEVO)
 ```
-Contacts Tab
+Chat Inbox Tab
     ↓
-ContactSearch Component
+Usuario ve:
+├── Barra de búsqueda
+├── Lista de chats activos (ordenados por último mensaje)
+└── Timestamp y último mensaje preview
+
+Usuario busca (escribe en barra)
     ↓
-Usuario busca por nombre/username
-    ↓
-Se muestran sugerencias
-    ↓
-Clic en "Agregar amigo"
-    ↓
-Solicitud enviada (Contact.status = 'pendiente')
-    ↓
-El otro usuario ve en FriendRequests
-    ↓
-Acepta/Rechaza
-    ↓
-Status actualizado ('aceptado' o 'rechazado')
-    ↓
-Si aceptado → Se agrega a contactos confirmados
+Se filtra y muestra:
+├── 🟦 Chats existentes que coinciden
+└── 🟩 Usuarios para iniciar conversación
+
+Usuario selecciona:
+    ├── Chat existente → Abre conversación
+    └── Usuario nuevo → Botón "Iniciar chat" o "Agregar amigo"
+        ↓
+        Se crea conversación
+        ↓
+        Se abre Chat Individual
 ```
 
-### 4️⃣ **Flujo de Chat** (ACTUALIZADO - REAL TIME)
+### 4️⃣ **Flujo de Chat Individual** (Pantalla Secundaria)
 ```
-Contacts → Seleccionar contacto → handleOpenChat()
+Se abre Chat Individual
     ↓
-ensureConversation(userId, contactUserId) ← Crea si no existe
+Se muestra:
+├── Cabecera: nombre, foto, estado (● online/offline)
+├── Conversación en burbujas
+├── Indicador "escribiendo..." (cuando el otro escribe)
+└── Campo de entrada + botón enviar
+
+Usuario escribe y envía
     ↓
-Navega a Chats Tab + WebSocket se conecta
+Mensaje por WebSocket (instantáneo)
     ↓
-Se abre ChatWindow del contacto
+Se guarda en BD
     ↓
-Usuario escribe + muestra indicador "escribiendo..."
+Broadcast a otro usuario (sin delay)
     ↓
-Envía mensaje por WebSocket (instantáneo)
+Otros ven: ✓ (entregado) → ✓✓ (leído)
+
+Botón Atrás (móvil)
     ↓
-Servidor recibe y guarda en BD
-    ↓
-Broadcast a otros usuarios en conversación (sin delay)
-    ↓
-Otros usuarios ven el mensaje INMEDIATAMENTE
-    ↓
-Se envía confirmación de lectura ("visto" ✓✓)
+Regresa a Chat Inbox
 ```
 
 ---

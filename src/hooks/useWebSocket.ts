@@ -48,7 +48,7 @@ export const useWebSocket = (userId: string | null) => {
             console.log('[WS] Disconnected from server');
         });
 
-        socket.on('connect_error', (error) => {
+        socket.on('connect_error', (error: any) => {
             console.error('[WS] Connection error:', error);
         });
 

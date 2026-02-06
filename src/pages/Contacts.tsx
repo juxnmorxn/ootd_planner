@@ -45,7 +45,7 @@ export const Contacts: React.FC<ContactsPageProps> = ({ userId }) => {
         }
 
         setCurrentChatTargetUserId(contactUserId);
-        setView('chats');
+        setView('chat-inbox');
     };
 
     return (

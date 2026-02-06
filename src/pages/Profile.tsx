@@ -317,25 +317,17 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                     className="rounded-2xl shadow-sm border p-6"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
                 >
-                    <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Contactos y Chats</h3>
+                    <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Mensajes</h3>
                     <p className="text-sm mb-4 text-left" style={{ color: 'var(--text-secondary)' }}>
                         Agrega amigos por su nombre de usuario, gestiona solicitudes de amistad y chatea solo con tus contactos aceptados.
                     </p>
                     <div className="flex flex-col gap-3">
                         <Button
-                            variant="secondary"
-                            onClick={() => setView('contacts')}
-                            className="w-full flex items-center justify-center gap-2"
-                        >
-                            <Users className="w-4 h-4" />
-                            Ver contactos y solicitudes
-                        </Button>
-                        <Button
-                            onClick={() => setView('chats')}
+                            onClick={() => setView('chat-inbox')}
                             className="w-full flex items-center justify-center gap-2"
                         >
                             💬
-                            Ir a chats
+                            Ir a mensajes
                         </Button>
                     </div>
                 </div>

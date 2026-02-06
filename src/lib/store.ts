@@ -16,8 +16,7 @@ interface AppState {
         | 'closet'
         | 'profile'
         | 'admin-users'
-        | 'contacts'
-        | 'chats'
+        | 'chat-inbox'
         | 'fondos';
     setCurrentView: (
         view:
@@ -27,8 +26,7 @@ interface AppState {
             | 'closet'
             | 'profile'
             | 'admin-users'
-            | 'contacts'
-            | 'chats'
+            | 'chat-inbox'
             | 'fondos'
     ) => void;
 

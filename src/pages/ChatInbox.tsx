@@ -1,36 +1,38 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Search, MessageCircle, UserPlus } from 'lucide-react';
+import { Search, MessageCircle, ChevronDown, Users } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
-import { useContacts } from '../hooks/useContacts';
 import { useStore } from '../lib/store';
 import { ChatWindow } from '../components/chat/ChatWindow';
-import type { User, Contact as ContactModel, ConversationWithData } from '../types';
+import type { User, ConversationWithData } from '../types';
 import './ChatInbox.css';
 
 interface ChatInboxProps {
     userId: string;
 }
 
+type TabType = 'messages' | 'requests';
+
 export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     const { conversations, getConversations } = useChat(userId);
-    const { contacts, getContacts, ensureConversation } = useContacts();
+    const { currentUser } = useStore();
     
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [showChatView, setShowChatView] = useState(false);
+    const [activeTab, setActiveTab] = useState<TabType>('messages');
+    const [showUserMenu, setShowUserMenu] = useState(false);
 
     // Cargar chats y contactos
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             await getConversations(userId);
-            await getContacts(userId);
             setLoading(false);
         };
         load();
-    }, [userId]);
+    }, [userId, getConversations]);
 
     // Detectar mobile
     useEffect(() => {
@@ -50,18 +52,14 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
         
         // Filtrar chats existentes
         const chats = conversations.filter(conv =>
-            conv.other_user?.username?.toLowerCase().includes(query) ||
-            conv.other_user?.email?.toLowerCase().includes(query)
+            conv.other_user?.username?.toLowerCase().includes(query)
         );
 
-        // Buscar usuarios para agregar
-        const users = contacts
-            .filter(c => c.contact_user?.username?.toLowerCase().includes(query))
-            .map(c => c.contact_user)
-            .filter(u => u !== null) as User[];
+        // Buscar usuarios para agregar (por ahora devolver contactos existentes)
+        const users: User[] = [];
 
         return { chats, users };
-    }, [searchQuery, conversations, contacts]);
+    }, [searchQuery, conversations]);
 
     const selectedConversation = conversations.find(c => c.id === selectedConversationId);
 
@@ -74,22 +72,25 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     };
 
     // Manejar agregar amigo desde búsqueda
-    const handleAddFriend = async (userId: string) => {
-        // Aquí se integraría con el API para enviar solicitud
-        console.log('Agregar amigo:', userId);
-    };
+    // const handleAddFriend = async () => {
+    //     // Aquí se integraría con el API para enviar solicitud
+    //     // Por ahora, solo placeholder
+    // };
 
     // Manejar abrir chat desde usuario en búsqueda
-    const handleOpenChatWithUser = async (user: User) => {
-        try {
-            await ensureConversation(userId, user.id);
-            const conv = conversations.find(c => c.other_user?.id === user.id);
-            if (conv) {
-                await handleOpenChat(conv);
-            }
-        } catch (err) {
-            console.error('Error opening chat:', err);
-        }
+    const handleOpenChatWithUser = async () => {
+        // Por ahora, solo placeholder
+    };
+
+    // Obtener solicitudes de amistad pendientes
+    // Por ahora, filtrar los contactos con estado pendiente
+    // Nota: pendingRequests no tiene datos del usuario, necesitaría otra llamada a API
+    const friendRequests: any[] = [];
+
+    // Función para aceptar/rechazar solicitud
+    const handleFriendRequest = async (contactId: string, accept: boolean) => {
+        // Aquí se integraría con el API
+        console.log(`${accept ? 'Aceptar' : 'Rechazar'} solicitud:`, contactId);
     };
 
     // Vista mobile: mostrar solo chat
@@ -114,18 +115,32 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     return (
         <div className="chat-inbox">
             <div className="inbox-container">
-                {/* Header */}
-                <div className="inbox-header">
-                    <h1>💬 Mensajes</h1>
+                {/* Header con dropdown usuario */}
+                <div className="inbox-top-header">
+                    <div className="user-menu-wrapper">
+                        <button 
+                            className="user-dropdown-btn"
+                            onClick={() => setShowUserMenu(!showUserMenu)}
+                        >
+                            <span>{currentUser?.username || 'Usuario'}</span>
+                            <ChevronDown size={18} />
+                        </button>
+                        {showUserMenu && (
+                            <div className="user-dropdown-menu">
+                                <div className="dropdown-item">{currentUser?.email}</div>
+                                <button className="dropdown-item logout-btn">Cerrar sesión</button>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Búsqueda unificada */}
+                {/* Búsqueda */}
                 <div className="inbox-search">
                     <div className="search-wrapper">
                         <Search size={18} className="search-icon" />
                         <input
                             type="text"
-                            placeholder="Busca chats o personas..."
+                            placeholder="Buscar"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="search-input"
@@ -133,128 +148,185 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                     </div>
                 </div>
 
-                {/* Contenido */}
+                {/* Tabs */}
+                <div className="tabs-wrapper">
+                    <button 
+                        className={`tab ${activeTab === 'messages' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('messages')}
+                    >
+                        Mensajes
+                    </button>
+                    <button 
+                        className={`tab ${activeTab === 'requests' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('requests')}
+                    >
+                        Solicitudes
+                        {friendRequests.length > 0 && <span className="badge">{friendRequests.length}</span>}
+                    </button>
+                </div>
+
+                {/* Contenido según tab */}
                 <div className="inbox-content">
-                    {loading ? (
-                        <p className="loading">Cargando...</p>
-                    ) : searchQuery.trim() ? (
-                        // Resultados de búsqueda
+                    {activeTab === 'messages' ? (
+                        // TAB: MENSAJES
                         <>
-                            {/* Chats coincidentes */}
-                            {searchResults.chats.length > 0 && (
-                                <div className="search-section">
-                                    <h3 className="section-title">Chats</h3>
-                                    <div className="search-results">
-                                        {searchResults.chats.map((conv) => (
-                                            <div
-                                                key={conv.id}
-                                                className="search-result-item chat-result"
-                                                onClick={() => handleOpenChat(conv)}
-                                            >
-                                                <div className="result-avatar">
-                                                    {conv.other_user?.profile_pic ? (
-                                                        <img src={conv.other_user.profile_pic} alt="" />
-                                                    ) : (
-                                                        <div className="avatar-placeholder">
-                                                            {(conv.other_user?.username || '?').charAt(0).toUpperCase()}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="result-info">
-                                                    <p className="result-name">{conv.other_user?.username}</p>
-                                                    <p className="result-preview">{conv.last_message?.content || 'Sin mensajes'}</p>
-                                                </div>
-                                                <MessageCircle size={16} className="result-icon" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Usuarios para agregar */}
-                            {searchResults.users.length > 0 && (
-                                <div className="search-section">
-                                    <h3 className="section-title">Personas</h3>
-                                    <div className="search-results">
-                                        {searchResults.users.map((user) => (
-                                            <div
-                                                key={user.id}
-                                                className="search-result-item user-result"
-                                            >
-                                                <div className="result-avatar">
-                                                    {user.profile_pic ? (
-                                                        <img src={user.profile_pic} alt="" />
-                                                    ) : (
-                                                        <div className="avatar-placeholder">
-                                                            {(user.username || '?').charAt(0).toUpperCase()}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="result-info">
-                                                    <p className="result-name">{user.username}</p>
-                                                </div>
-                                                <button
-                                                    className="add-friend-btn"
-                                                    onClick={() => handleOpenChatWithUser(user)}
-                                                    title="Iniciar chat"
+                            {loading ? (
+                                <p className="loading">Cargando...</p>
+                            ) : searchQuery.trim() ? (
+                                // Resultados de búsqueda
+                                <>
+                                    {searchResults.chats.length > 0 && (
+                                        <div className="search-section">
+                                            {searchResults.chats.map((conv) => (
+                                                <div
+                                                    key={conv.id}
+                                                    className="chat-item"
+                                                    onClick={() => handleOpenChat(conv)}
                                                 >
-                                                    <MessageCircle size={16} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                                                    <div className="chat-avatar">
+                                                        {conv.other_user?.profile_pic ? (
+                                                            <img src={conv.other_user.profile_pic} alt="" />
+                                                        ) : (
+                                                            <div className="avatar-placeholder">
+                                                                {(conv.other_user?.username || '?').charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <div className="online-indicator"></div>
+                                                    </div>
+                                                    <div className="chat-content">
+                                                        <div className="chat-header">
+                                                            <p className="chat-name">{conv.other_user?.username}</p>
+                                                            <p className="chat-time">
+                                                                {conv.last_message?.created_at
+                                                                    ? formatMessageTime(new Date(conv.last_message.created_at))
+                                                                    : ''}
+                                                            </p>
+                                                        </div>
+                                                        <p className="chat-message">
+                                                            {conv.last_message?.content || 'Sin mensajes aún'}
+                                                        </p>
+                                                    </div>
+                                                    {conv.unread_count! > 0 && (
+                                                        <span className="unread-dot"></span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
 
-                            {searchResults.chats.length === 0 && searchResults.users.length === 0 && (
-                                <p className="no-results">No se encontraron resultados</p>
+                                    {searchResults.users.length > 0 && (
+                                        <div className="search-section">
+                                            {searchResults.users.map((user) => (
+                                                <div
+                                                    key={user.id}
+                                                    className="chat-item"
+                                                    onClick={() => handleOpenChatWithUser()}
+                                                >
+                                                    <div className="chat-avatar">
+                                                        {user.profile_pic ? (
+                                                            <img src={user.profile_pic} alt="" />
+                                                        ) : (
+                                                            <div className="avatar-placeholder">
+                                                                {(user.username || '?').charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <div className="online-indicator"></div>
+                                                    </div>
+                                                    <div className="chat-content">
+                                                        <p className="chat-name">{user.username}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                // Vista normal: lista de chats
+                                <>
+                                    {conversations.length === 0 ? (
+                                        <div className="empty-state">
+                                            <MessageCircle size={48} />
+                                            <p>No tienes chats aún</p>
+                                        </div>
+                                    ) : (
+                                        <div className="chats-list">
+                                            {conversations.map((conv) => (
+                                                <div
+                                                    key={conv.id}
+                                                    className={`chat-item ${selectedConversationId === conv.id ? 'active' : ''}`}
+                                                    onClick={() => handleOpenChat(conv)}
+                                                >
+                                                    <div className="chat-avatar">
+                                                        {conv.other_user?.profile_pic ? (
+                                                            <img src={conv.other_user.profile_pic} alt="" />
+                                                        ) : (
+                                                            <div className="avatar-placeholder">
+                                                                {(conv.other_user?.username || '?').charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <div className="online-indicator"></div>
+                                                    </div>
+                                                    <div className="chat-content">
+                                                        <div className="chat-header">
+                                                            <p className="chat-name">{conv.other_user?.username}</p>
+                                                            <p className="chat-time">
+                                                                {conv.last_message?.created_at
+                                                                    ? formatMessageTime(new Date(conv.last_message.created_at))
+                                                                    : ''}
+                                                            </p>
+                                                        </div>
+                                                        <p className="chat-message">
+                                                            {conv.last_message?.content || 'Sin mensajes aún'}
+                                                        </p>
+                                                    </div>
+                                                    {conv.unread_count! > 0 && (
+                                                        <span className="unread-dot"></span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </>
                     ) : (
-                        // Vista normal: lista de chats
+                        // TAB: SOLICITUDES
                         <>
-                            {conversations.length === 0 ? (
+                            {friendRequests.length === 0 ? (
                                 <div className="empty-state">
-                                    <MessageCircle size={48} />
-                                    <p>No tienes chats aún</p>
-                                    <p className="empty-hint">Busca personas para iniciar una conversación</p>
+                                    <Users size={48} />
+                                    <p>No hay solicitudes</p>
                                 </div>
                             ) : (
-                                <div className="chats-list">
-                                    {conversations.map((conv) => (
-                                        <div
-                                            key={conv.id}
-                                            className={`chat-item ${selectedConversationId === conv.id ? 'active' : ''}`}
-                                            onClick={() => handleOpenChat(conv)}
-                                        >
+                                <div className="requests-list">
+                                    {friendRequests.map((req) => (
+                                        <div key={req.id} className="request-item">
                                             <div className="chat-avatar">
-                                                {conv.other_user?.profile_pic ? (
-                                                    <img src={conv.other_user.profile_pic} alt="" />
+                                                {req.contact_user?.profile_pic ? (
+                                                    <img src={req.contact_user.profile_pic} alt="" />
                                                 ) : (
                                                     <div className="avatar-placeholder">
-                                                        {(conv.other_user?.username || '?').charAt(0).toUpperCase()}
+                                                        {(req.contact_user?.username || '?').charAt(0).toUpperCase()}
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="chat-content">
-                                                <div className="chat-header">
-                                                    <p className="chat-name">{conv.other_user?.username}</p>
-                                                    <p className="chat-time">
-                                                        {conv.last_message?.created_at
-                                                            ? new Date(conv.last_message.created_at).toLocaleTimeString([], {
-                                                                hour: '2-digit',
-                                                                minute: '2-digit',
-                                                            })
-                                                            : ''}
-                                                    </p>
-                                                </div>
-                                                <p className="chat-message">
-                                                    {conv.last_message?.content || 'Sin mensajes aún'}
-                                                </p>
+                                            <div className="request-content">
+                                                <p className="request-name">{req.contact_user?.username}</p>
                                             </div>
-                                            {conv.unread_count! > 0 && (
-                                                <span className="unread-badge">{conv.unread_count}</span>
-                                            )}
+                                            <div className="request-actions">
+                                                <button 
+                                                    className="btn-accept"
+                                                    onClick={() => handleFriendRequest(req.id, true)}
+                                                >
+                                                    ✓
+                                                </button>
+                                                <button 
+                                                    className="btn-reject"
+                                                    onClick={() => handleFriendRequest(req.id, false)}
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -265,7 +337,7 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
             </div>
 
             {/* Vista desktop: chat al lado */}
-            {!isMobile && (
+            {!isMobile && activeTab === 'messages' && (
                 <div className="chat-detail-pane">
                     {selectedConversation ? (
                         <ChatWindow
@@ -285,3 +357,19 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
         </div>
     );
 };
+
+// Función helper para formatear tiempo
+function formatMessageTime(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Ahora';
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    
+    return date.toLocaleDateString();
+}
