@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 
 export interface WebSocketMessage {
     id: string;
@@ -51,7 +51,7 @@ export interface ContactAcceptedEvent {
 }
 
 export const useWebSocket = (userId: string | null) => {
-    const socketRef = useRef<Socket | null>(null);
+    const socketRef = useRef<any | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Inicializar conexión WebSocket

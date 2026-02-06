@@ -5,7 +5,7 @@
  */
 
 import { getWatermelonDb, syncDatabase, startAutoSync } from './watermelon';
-import { GarmentModel, OutfitModel } from './db-models';
+// Removed unused imports for GarmentModel and OutfitModel
 import type { Garment, Outfit } from '../types';
 
 class WatermelonDatabaseService {
@@ -51,7 +51,7 @@ class WatermelonDatabaseService {
     
     try {
       const db = await getWatermelonDb();
-      const collection = db.get<GarmentModel>('garments');
+      const collection = db.get('garments') as any;
 
       await db.write(async () => {
         await collection.create((g: any) => {
@@ -83,7 +83,7 @@ class WatermelonDatabaseService {
   async getGarmentsByUser(userId: string): Promise<Garment[]> {
     try {
       const db = await getWatermelonDb();
-      const collection = db.get<GarmentModel>('garments');
+      const collection = db.get('garments') as any;
       
       const allGarments = await collection.query().fetch() as any[];
       const userGarments = allGarments.filter((g: any) => g.user_id === userId);
@@ -104,7 +104,7 @@ class WatermelonDatabaseService {
   async getGarmentsByCategory(userId: string, category: string): Promise<Garment[]> {
     try {
       const db = await getWatermelonDb();
-      const collection = db.get<GarmentModel>('garments');
+      const collection = db.get('garments') as any;
       
       const allGarments = await collection.query().fetch() as any[];
       const filtered = allGarments.filter((g: any) => g.user_id === userId && g.category === category);
@@ -126,7 +126,7 @@ class WatermelonDatabaseService {
   async deleteGarment(garmentId: string): Promise<void> {
     try {
       const db = await getWatermelonDb();
-      const collection = db.get<GarmentModel>('garments');
+      const collection = db.get('garments') as any;
 
       const garment = await collection.find(garmentId);
       await db.write(async () => {
@@ -142,7 +142,7 @@ class WatermelonDatabaseService {
   async createOutfit(outfit: Outfit): Promise<Outfit> {
     try {
       const db = await getWatermelonDb();
-      const collection = db.get<OutfitModel>('outfits');
+      const collection = db.get('outfits') as any;
 
       await db.write(async () => {
         await collection.create((o: any) => {
@@ -163,7 +163,7 @@ class WatermelonDatabaseService {
   async getOutfitsByUser(userId: string): Promise<Outfit[]> {
     try {
       const db = await getWatermelonDb();
-      const collection = db.get<OutfitModel>('outfits');
+      const collection = db.get('outfits') as any;
       
       const allOutfits = await collection.query().fetch() as any[];
       const userOutfits = allOutfits.filter((o: any) => o.user_id === userId);
@@ -184,7 +184,7 @@ class WatermelonDatabaseService {
   async getOutfitByDate(userId: string, date: string): Promise<Outfit | null> {
     try {
       const db = await getWatermelonDb();
-      const collection = db.get<OutfitModel>('outfits');
+      const collection = db.get('outfits') as any;
       
       const allOutfits = await collection.query().fetch() as any[];
       const outfits = allOutfits.filter((o: any) => o.user_id === userId && o.date_scheduled === date);
@@ -208,7 +208,7 @@ class WatermelonDatabaseService {
   async updateOutfit(id: string, layersJson: string): Promise<void> {
     try {
       const db = await getWatermelonDb();
-      const collection = db.get<OutfitModel>('outfits');
+      const collection = db.get('outfits') as any;
 
       const outfit = await collection.find(id);
       await db.write(async () => {
@@ -224,7 +224,7 @@ class WatermelonDatabaseService {
   async deleteOutfit(id: string): Promise<void> {
     try {
       const db = await getWatermelonDb();
-      const collection = db.get<OutfitModel>('outfits');
+      const collection = db.get('outfits') as any;
 
       const outfit = await collection.find(id);
       await db.write(async () => {
@@ -239,8 +239,8 @@ class WatermelonDatabaseService {
     try {
       const db = await getWatermelonDb();
       await db.write(async () => {
-        const garments = db.get<GarmentModel>('garments');
-        const outfits = db.get<OutfitModel>('outfits');
+        const garments = db.get('garments') as any;
+        const outfits = db.get('outfits') as any;
 
         const allGarments = await garments.query().fetch();
         const allOutfits = await outfits.query().fetch();
