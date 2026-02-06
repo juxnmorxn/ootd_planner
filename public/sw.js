@@ -139,6 +139,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Solo cachear GET requests
+  if (request.method !== 'GET') {
+    return event.respondWith(fetch(request));
+  }
+
   // Para otros assets, cache-first pero con validación
   event.respondWith(
     caches.match(request).then((cached) => {
