@@ -749,11 +749,15 @@ app.get('/api/conversations/:userId', async (req, res) => {
       args: [userId],
     });
 
+    console.log(`[API] Found ${rows.length} conversations for user ${userId}`);
+
     const enriched = [];
 
     for (const conv of rows) {
       const otherUserId = conv.user_id_1 === userId ? conv.user_id_2 : conv.user_id_1;
       const otherUser = await getUserById(otherUserId);
+      
+      console.log(`[API] Conversation ${conv.id}: otherUserId=${otherUserId}, otherUser found=${!!otherUser}`);
 
       const { rows: messageRows } = await turso.execute({
         sql: 'SELECT * FROM messages WHERE conversation_id = ?1 ORDER BY created_at ASC',
@@ -776,6 +780,7 @@ app.get('/api/conversations/:userId', async (req, res) => {
       });
     }
 
+    console.log(`[API] Returning ${enriched.length} enriched conversations`);
     res.json(enriched);
   } catch (error) {
     console.error('[API] Conversations list error:', error);

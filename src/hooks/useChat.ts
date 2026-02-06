@@ -130,7 +130,14 @@ export const useChat = (userId?: string) => {
         }
 
         if (!conversationId || !senderId || !recipientId) {
-            throw new Error('Missing required message fields');
+            const missing = [];
+            if (!conversationId) missing.push('conversationId');
+            if (!senderId) missing.push('senderId');
+            if (!recipientId) missing.push('recipientId');
+            const err = new Error(`Missing required message fields: ${missing.join(', ')}`);
+            console.error('[Chat] Validation error:', err);
+            setError(err.message);
+            throw err;
         }
 
         try {
