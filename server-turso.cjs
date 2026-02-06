@@ -874,10 +874,6 @@ app.post('/api/messages', async (req, res) => {
 
     console.log('[API] Message saved successfully:', messageId);
     res.json(newMessage);
-      message_type: message_type || 'text',
-      read: 0,
-      created_at: now,
-    });
   } catch (error) {
     console.error('[API] Send message error:', error);
     res.status(500).json({ error: error.message });
