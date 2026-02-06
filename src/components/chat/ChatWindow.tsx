@@ -43,12 +43,33 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
         return () => clearTimeout(timer);
     }, [currentMessages, typingUsers]);
 
-    // Auto-scroll cuando se abre el input
+    // Auto-scroll cuando se abre el input - más agresivo
     const handleInputFocus = () => {
+        // Primero scroll suave al final
         setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+        
+        // Luego scroll directo al input (asegura que esté visible encima del teclado)
+        setTimeout(() => {
+            inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }, 300);
     };
+
+    // Listener para detectar cuando el viewport cambia (teclado aparece)
+    useEffect(() => {
+        const handleResize = () => {
+            // Si el input está focused y el viewport se reduce, hacer scroll
+            if (inputRef.current === document.activeElement) {
+                setTimeout(() => {
+                    inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 100);
+            }
+        };
+        
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         getMessages(conversationId);
