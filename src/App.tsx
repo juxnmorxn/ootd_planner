@@ -268,6 +268,7 @@ function App() {
         <BottomNav
           active={navActive}
           onNavigate={handleNavigate}
+          currentUser={currentUser}
         />
       )}
     </div>
