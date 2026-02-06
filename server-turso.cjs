@@ -691,8 +691,9 @@ app.post('/api/contacts/open-chat', async (req, res) => {
     });
 
     const contact = contactRows[0];
-    if (!contact || contact.status !== 'aceptado') {
-      return res.status(403).json({ error: 'Solo puedes chatear con contactos aceptados' });
+    // Permitir chats con contactos pendientes o aceptados
+    if (!contact || (contact.status !== 'aceptado' && contact.status !== 'pendiente')) {
+      return res.status(403).json({ error: 'No puedes chatear con este usuario' });
     }
 
     let conversation = await getConversationByUsers(user_id, contact_id);

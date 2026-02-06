@@ -44,9 +44,11 @@ export const useWebSocket = (userId: string | null) => {
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            reconnectionAttempts: 5,
-            transports: ['websocket', 'polling'], // Intentar websocket primero, luego polling
+            reconnectionAttempts: 10, // Aumentado
+            transports: ['polling', 'websocket'], // Polling primero en producción
             upgrade: true,
+            pingInterval: 25000,
+            pingTimeout: 20000,
         });
 
         socket.on('connect', () => {

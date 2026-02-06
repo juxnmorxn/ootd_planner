@@ -141,7 +141,9 @@ self.addEventListener('fetch', (event) => {
 
   // Solo cachear GET requests con esquema http/https
   if (request.method !== 'GET' || !request.url.startsWith('http')) {
-    return event.respondWith(fetch(request));
+    return event.respondWith(fetch(request).catch(() => {
+      // Fallar silenciosamente si no es http/https
+    }));
   }
 
   // Para otros assets, cache-first pero con validación
@@ -154,15 +156,23 @@ self.addEventListener('fetch', (event) => {
           return response;
         }
 
-        const clonedResponse = response.clone();
-        caches.open(RUNTIME_CACHE).then((cache) => {
-          cache.put(request, clonedResponse).catch(() => {
-            // Ignorar errores de cache (extensiones, etc)
+        try {
+          const clonedResponse = response.clone();
+          caches.open(RUNTIME_CACHE).then((cache) => {
+            cache.put(request, clonedResponse).catch(() => {
+              // Ignorar errores de cache
+            });
           });
-        });
+        } catch (e) {
+          // Ignorar cualquier error de caching
+        }
 
         return response;
+      }).catch(() => {
+        // Fallar silenciosamente en fetch
       });
+    }).catch(() => {
+      // Fallar silenciosamente en match
     }),
   );
 });
