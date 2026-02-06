@@ -130,8 +130,11 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
             await sendRequest(userId, contactId);
             // Remover usuario de la lista de búsqueda
             setSearchUsers(prev => prev.filter(u => u.id !== contactId));
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error sending friend request:', err);
+            // Mostrar error específico
+            const errorMsg = err?.message || 'Error al enviar solicitud';
+            console.error('Error details:', errorMsg);
         }
     };
 

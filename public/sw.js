@@ -45,9 +45,10 @@ self.addEventListener('activate', (event) => {
           });
         });
       }),
+      // Claim clients after other operations
+      self.clients.claim(),
     ])
   );
-  self.clients.claim();
 });
 
 // Verificar actualizaciones periódicamente

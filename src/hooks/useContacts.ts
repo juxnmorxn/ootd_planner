@@ -37,16 +37,25 @@ export const useContacts = () => {
     const sendRequest = async (userId: string, contactId: string) => {
         setError(null);
         try {
+            console.log('[useContacts] Sending friend request:', { userId, contactId });
             const response = await fetch(`${API_URL}/contacts/request`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: userId, contact_id: contactId }),
             });
 
-            if (!response.ok) throw new Error('Failed to send request');
-            return await response.json();
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorMsg = errorData.error || `Failed to send request (${response.status})`;
+                console.error('[useContacts] Error response:', errorData);
+                throw new Error(errorMsg);
+            }
+            const result = await response.json();
+            console.log('[useContacts] Friend request sent successfully:', result);
+            return result;
         } catch (err: any) {
             setError(err.message);
+            console.error('[useContacts] sendRequest error:', err.message);
             throw err;
         }
     };

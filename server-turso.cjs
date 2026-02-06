@@ -439,17 +439,22 @@ app.post('/api/contacts/request', async (req, res) => {
   try {
     const { user_id, contact_id } = req.body;
 
+    console.log('[API] Contacts request - user_id:', user_id, 'contact_id:', contact_id);
+
     if (!user_id || !contact_id) {
+      console.log('[API] Missing user_id or contact_id');
       return res.status(400).json({ error: 'user_id y contact_id requeridos' });
     }
 
     if (user_id === contact_id) {
+      console.log('[API] User trying to add themselves');
       return res.status(400).json({ error: 'No puedes agregarte a ti mismo' });
     }
 
     const user = await getUserById(user_id);
     const contactUser = await getUserById(contact_id);
     if (!user || !contactUser) {
+      console.log('[API] User not found - user:', user, 'contactUser:', contactUser);
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
@@ -458,6 +463,7 @@ app.post('/api/contacts/request', async (req, res) => {
       args: [user_id, contact_id],
     });
     if (existingRows.length > 0) {
+      console.log('[API] Request already exists');
       return res.status(400).json({ error: 'Ya existe una solicitud con este usuario' });
     }
 
@@ -469,6 +475,7 @@ app.post('/api/contacts/request', async (req, res) => {
       args: [id, user_id, contact_id, 'pendiente', now, now],
     });
 
+    console.log('[API] Contact request created:', id);
     res.json({ id, user_id, contact_id, status: 'pendiente', created_at: now, updated_at: now });
   } catch (error) {
     console.error('[API] Contacts request error:', error);
