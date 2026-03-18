@@ -28,65 +28,65 @@
   /* Fix para iOS/Safari - 100vh con teclado abierto */
   --vh: 1vh;
 
-  /* Light Theme (Default) */
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-tertiary: #94a3b8;
-  --text-muted: #cbd5e1;
-  --border-primary: #e2e8f0;
-  --border-secondary: #cbd5e1;
-  --input-bg: #ffffff;
-  --input-border: #e2e8f0;
-  --input-text: #1e293b;
-  --input-placeholder: #94a3b8;
-  --btn-primary-bg: #000000;
+  /* Light Theme (Default) - Inspirado en Facebook Light */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f0f2f5;
+  --bg-tertiary: #e4e6eb;
+  --text-primary: #050505;
+  --text-secondary: #65676b;
+  --text-tertiary: #8a8d91;
+  --text-muted: #bcc0c4;
+  --border-primary: #ccc;
+  --border-secondary: #ddd;
+  --input-bg: #f0f2f5;
+  --input-border: #ccc;
+  --input-text: #050505;
+  --input-placeholder: #8a8d91;
+  --btn-primary-bg: #0a66c2;
   --btn-primary-text: #ffffff;
-  --btn-primary-hover: #1a1a1a;
-  --btn-secondary-bg: #e2e8f0;
-  --btn-secondary-text: #475569;
-  --btn-secondary-hover: #cbd5e1;
+  --btn-primary-hover: #085999;
+  --btn-secondary-bg: #e4e6eb;
+  --btn-secondary-text: #050505;
+  --btn-secondary-hover: #d0d2d7;
   --btn-ghost-bg: transparent;
-  --btn-ghost-text: #475569;
-  --btn-ghost-hover: #f1f5f9;
-  --accent-primary: #2563eb;
-  --accent-hover: #1d4ed8;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --btn-ghost-text: #65676b;
+  --btn-ghost-hover: #f0f2f5;
+  --accent-primary: #0a66c2;
+  --accent-hover: #085999;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 12px 0 rgba(0, 0, 0, 0.15);
 }
 
-/* Dark Theme */
+/* Dark Theme - Inspirado en Facebook Dark */
 :root.dark {
-  --bg-primary: #020617;
-  --bg-secondary: #0b1220;
-  --bg-tertiary: #111827;
-  --text-primary: #f9fafb;
-  --text-secondary: #e5e7eb;
-  --text-tertiary: #9ca3af;
-  --text-muted: #6b7280;
-  --border-primary: #1f2937;
-  --border-secondary: #111827;
-  --input-bg: #020617;
-  --input-border: #1f2937;
-  --input-text: #f9fafb;
-  --input-placeholder: #6b7280;
-  --btn-primary-bg: #2563eb;
-  --btn-primary-text: #f9fafb;
-  --btn-primary-hover: #1d4ed8;
-  --btn-secondary-bg: rgba(255, 255, 255, 0.1);
-  --btn-secondary-text: #e5e7eb;
-  --btn-secondary-hover: rgba(255, 255, 255, 0.2);
+  --bg-primary: #18191a;
+  --bg-secondary: #242526;
+  --bg-tertiary: #3a3b3c;
+  --text-primary: #e4e6eb;
+  --text-secondary: #b0b3b8;
+  --text-tertiary: #8a8d91;
+  --text-muted: #65676b;
+  --border-primary: #3a3b3c;
+  --border-secondary: #404244;
+  --input-bg: #242526;
+  --input-border: #3a3b3c;
+  --input-text: #e4e6eb;
+  --input-placeholder: #65676b;
+  --btn-primary-bg: #0a66c2;
+  --btn-primary-text: #e4e6eb;
+  --btn-primary-hover: #085999;
+  --btn-secondary-bg: #3a3b3c;
+  --btn-secondary-text: #b0b3b8;
+  --btn-secondary-hover: #404244;
   --btn-ghost-bg: transparent;
-  --btn-ghost-text: #e5e7eb;
+  --btn-ghost-text: #b0b3b8;
   --btn-ghost-hover: rgba(255, 255, 255, 0.1);
-  --accent-primary: #3b82f6;
-  --accent-hover: #2563eb;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --accent-primary: #31a24c;
+  --accent-hover: #218540;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 4px 12px 0 rgba(0, 0, 0, 0.6);
 }
 
 body {

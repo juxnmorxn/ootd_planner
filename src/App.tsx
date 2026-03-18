@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { watermelonService } from './lib/watermelon-service';
 import { syncDatabase } from './lib/watermelon';
 import { useStore } from './lib/store';
+import { useTheme } from './lib/theme';
 import { Auth } from './pages/Auth';
 import { CalendarHome } from './pages/CalendarHome';
 import { OutfitEditor } from './pages/OutfitEditor';
@@ -23,6 +24,23 @@ function App() {
   const view = useStore((state) => state.currentView);
   const setView = useStore((state) => state.setCurrentView);
   const isViewingIndividualChat = useStore((state) => state.isViewingIndividualChat);
+
+  // ✅ Inicializar el tema al cargar la app
+  const { theme } = useTheme();
+  
+  // ✅ Aplicar tema guardado desde localStorage al iniciar
+  useEffect(() => {
+    // Forzar rehidratación del tema
+    const savedTheme = localStorage.getItem('outfit-planner-theme');
+    if (savedTheme) {
+      const parsed = JSON.parse(savedTheme);
+      if (parsed.state?.theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, []);
 
   // Saber si el store persistido (localStorage) ya se rehidrató
   const hasHydrated = (useStore as any).persist?.hasHydrated
