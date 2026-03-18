@@ -1,12 +1,17 @@
 @import "tailwindcss";
 
-/* Custom theme variables */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   UNIFIED THEME SYSTEM - Light (Default) & Dark (Facebook-inspired)
+   All colors use CSS variables for consistency across the entire app
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Custom theme tokens for tailwind */
 @theme {
   --color-primary: #000000;
   --color-accent: #0f172a;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* Onboarding / Dark theme background tokens */
+  /* Onboarding gradients - only for auth pages */
   --bg-onboarding-base-1: #081a2b;
   --bg-onboarding-base-2: #3b2a6e;
   --bg-onboarding-glow-1: #7c3aed;
@@ -18,7 +23,6 @@
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -28,20 +32,35 @@
   /* Fix para iOS/Safari - 100vh con teclado abierto */
   --vh: 1vh;
 
-  /* Light Theme (Default) - Inspirado en Facebook Light */
+  /* ─────────────────────────────────────────────────────────────
+     LIGHT THEME (Default) - Facebook Light Inspired
+     ───────────────────────────────────────────────────────────── */
+  
+  /* Backgrounds */
   --bg-primary: #ffffff;
   --bg-secondary: #f0f2f5;
   --bg-tertiary: #e4e6eb;
+  --bg-quaternary: #d8dce3;
+  
+  /* Text */
   --text-primary: #050505;
   --text-secondary: #65676b;
   --text-tertiary: #8a8d91;
+  --text-quaternary: #bcc0c4;
   --text-muted: #bcc0c4;
+  
+  /* Borders */
   --border-primary: #ccc;
   --border-secondary: #ddd;
+  --border-tertiary: #e5e5e5;
+  
+  /* Inputs */
   --input-bg: #f0f2f5;
   --input-border: #ccc;
   --input-text: #050505;
   --input-placeholder: #8a8d91;
+  
+  /* Buttons */
   --btn-primary-bg: #0a66c2;
   --btn-primary-text: #ffffff;
   --btn-primary-hover: #085999;
@@ -51,28 +70,72 @@
   --btn-ghost-bg: transparent;
   --btn-ghost-text: #65676b;
   --btn-ghost-hover: #f0f2f5;
+  --btn-danger-bg: #ff4458;
+  --btn-danger-text: #ffffff;
+  --btn-danger-hover: #e63946;
+  
+  /* Badges & Alerts */
+  --badge-success-bg: #d4edda;
+  --badge-success-text: #155724;
+  --badge-success-border: #28a745;
+  --badge-error-bg: #f8d7da;
+  --badge-error-text: #721c24;
+  --badge-error-border: #f5c6cb;
+  --badge-warning-bg: #fff3cd;
+  --badge-warning-text: #856404;
+  --badge-warning-border: #ffeeba;
+  --badge-info-bg: #d1ecf1;
+  --badge-info-text: #0c5460;
+  --badge-info-border: #bee5eb;
+  
+  /* Accents */
   --accent-primary: #0a66c2;
   --accent-hover: #085999;
+  --accent-success: #28a745;
+  --accent-error: #dc3545;
+  --accent-warning: #ffc107;
+  --accent-info: #17a2b8;
+  
+  /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
   --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 4px 12px 0 rgba(0, 0, 0, 0.15);
+  
+  /* Scrollbars */
+  --scrollbar-bg: #e0e0e0;
+  --scrollbar-hover: #b0b0b0;
 }
 
-/* Dark Theme - Inspirado en Facebook Dark */
+/* ─────────────────────────────────────────────────────────────
+   DARK THEME - Facebook Dark Inspired
+   ───────────────────────────────────────────────────────────── */
+
 :root.dark {
+  /* Backgrounds */
   --bg-primary: #18191a;
   --bg-secondary: #242526;
   --bg-tertiary: #3a3b3c;
+  --bg-quaternary: #454647;
+  
+  /* Text */
   --text-primary: #e4e6eb;
   --text-secondary: #b0b3b8;
   --text-tertiary: #8a8d91;
+  --text-quaternary: #65676b;
   --text-muted: #65676b;
+  
+  /* Borders */
   --border-primary: #3a3b3c;
   --border-secondary: #404244;
+  --border-tertiary: #454647;
+  
+  /* Inputs */
   --input-bg: #242526;
   --input-border: #3a3b3c;
   --input-text: #e4e6eb;
   --input-placeholder: #65676b;
+  
+  /* Buttons */
   --btn-primary-bg: #0a66c2;
   --btn-primary-text: #e4e6eb;
   --btn-primary-hover: #085999;
@@ -82,11 +145,40 @@
   --btn-ghost-bg: transparent;
   --btn-ghost-text: #b0b3b8;
   --btn-ghost-hover: rgba(255, 255, 255, 0.1);
+  --btn-danger-bg: #f02849;
+  --btn-danger-text: #ffffff;
+  --btn-danger-hover: #e6244a;
+  
+  /* Badges & Alerts */
+  --badge-success-bg: #1e4620;
+  --badge-success-text: #a8f5a8;
+  --badge-success-border: #28a745;
+  --badge-error-bg: #5a2830;
+  --badge-error-text: #ff9fb0;
+  --badge-error-border: #f02849;
+  --badge-warning-bg: #4d3f1a;
+  --badge-warning-text: #ffd747;
+  --badge-warning-border: #ffc107;
+  --badge-info-bg: #1a3a3f;
+  --badge-info-text: #5dd7e8;
+  --badge-info-border: #17a2b8;
+  
+  /* Accents */
   --accent-primary: #31a24c;
   --accent-hover: #218540;
+  --accent-success: #31a24c;
+  --accent-error: #f02849;
+  --accent-warning: #ffc107;
+  --accent-info: #5dd7e8;
+  
+  /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
   --shadow-md: 0 2px 4px 0 rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 4px 12px 0 rgba(0, 0, 0, 0.6);
+  
+  /* Scrollbars */
+  --scrollbar-bg: #404244;
+  --scrollbar-hover: #505254;
 }
 
 body {
@@ -103,7 +195,10 @@ body {
   min-height: 100vh;
 }
 
-/* Utility classes */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   UTILITY CLASSES & COMPONENTS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
 @layer utilities {
   .touch-manipulation {
     touch-action: manipulation;
@@ -131,7 +226,7 @@ body {
     display: none;
   }
 
-  /* Pequeñas animaciones reutilizables */
+  /* Animations */
   .fade-in-up {
     animation: fade-in-up 160ms ease-out;
   }
@@ -144,7 +239,7 @@ body {
     animation: scale-in-soft 140ms ease-out;
   }
 
-  /* Reusable background: similar to the onboarding mock */
+  /* Backgrounds */
   .bg-onboarding-glow {
     position: relative;
     overflow: hidden;
@@ -159,7 +254,7 @@ body {
     position: absolute;
     inset: -30%;
     background:
-      radial-gradient(closest-side at 50% 55%, color-mix(in srgb, #ffffff 20%, transparent) 0%, transparent 70%),
+      radial-gradient(closest-side at 50% 55%, color-mix(in srgb, var(--text-primary) 20%, transparent) 0%, transparent 70%),
       radial-gradient(closest-side at 50% 55%, color-mix(in srgb, var(--bg-onboarding-glow-3) 22%, transparent) 0%, transparent 75%);
     filter: blur(24px);
     opacity: 0.85;
@@ -170,7 +265,36 @@ body {
     position: relative;
     z-index: 1;
   }
+
+  /* Badges */
+  .badge-success {
+    background-color: var(--badge-success-bg);
+    color: var(--badge-success-text);
+    border: 1px solid var(--badge-success-border);
+  }
+
+  .badge-error {
+    background-color: var(--badge-error-bg);
+    color: var(--badge-error-text);
+    border: 1px solid var(--badge-error-border);
+  }
+
+  .badge-warning {
+    background-color: var(--badge-warning-bg);
+    color: var(--badge-warning-text);
+    border: 1px solid var(--badge-warning-border);
+  }
+
+  .badge-info {
+    background-color: var(--badge-info-bg);
+    color: var(--badge-info-text);
+    border: 1px solid var(--badge-info-border);
+  }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   KEYFRAME ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════════ */
 
 @keyframes fade-in-up {
   from {
@@ -205,10 +329,13 @@ body {
   }
 }
 
-/* Scrollbar styling */
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SCROLLBAR STYLING (Themed)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -216,10 +343,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 2px;
+  background: var(--scrollbar-bg);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--scrollbar-hover);
 }

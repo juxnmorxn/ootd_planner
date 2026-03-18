@@ -193,7 +193,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                                 {currentUser.username || currentUser.email}
                             </h2>
                             {currentUser.role === 'admin' && (
-                                <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase rounded-full border border-indigo-100 flex items-center gap-1 shadow-sm">
+                                <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 shadow-sm badge-info">
                                     <Shield className="w-3 h-3" />
                                     Super Admin
                                 </span>
@@ -273,13 +273,13 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                             </div>
 
                             {error && (
-                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                                <div className="px-4 py-3 rounded-xl text-sm badge-error">
                                     {error}
                                 </div>
                             )}
 
                             {success && (
-                                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">
+                                <div className="px-4 py-3 rounded-xl text-sm badge-success">
                                     {success}
                                 </div>
                             )}
@@ -320,7 +320,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                             </div>
 
                             {success && (
-                                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">
+                                <div className="px-4 py-3 rounded-xl text-sm badge-success">
                                     {success}
                                 </div>
                             )}
@@ -371,7 +371,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                             />
 
                             {error && (
-                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                                <div className="px-4 py-3 rounded-xl text-sm badge-error">
                                     {error}
                                 </div>
                             )}

@@ -1,43 +1,7 @@
-/* ════════════════════════════════════ CSS VARIABLES FOR THEMING ════════════════════════════════════ */
-:root {
-    /* Dark theme (default) */
-    --bg-primary: #020617;
-    --bg-secondary: #111827;
-    --bg-tertiary: #1f2937;
-    --bg-quaternary: #374151;
-    --text-primary: #f3f4f6;
-    --text-secondary: #d1d5db;
-    --text-tertiary: #9ca3af;
-    --text-quaternary: #6b7280;
-    --border-color: #111827;
-    --hover-bg: #111827;
-    --active-bg: #1f2937;
-    --accent-color: #3b82f6;
-    --success-color: #10b981;
-    --error-color: #ef4444;
-    --warning-color: #f59e0b;
-}
-
-/* Light theme */
-@media (prefers-color-scheme: light) {
-    :root {
-        --bg-primary: #ffffff;
-        --bg-secondary: #f9fafb;
-        --bg-tertiary: #f3f4f6;
-        --bg-quaternary: #e5e7eb;
-        --text-primary: #111827;
-        --text-secondary: #374151;
-        --text-tertiary: #6b7280;
-        --text-quaternary: #9ca3af;
-        --border-color: #e5e7eb;
-        --hover-bg: #f3f4f6;
-        --active-bg: #e5e7eb;
-        --accent-color: #3b82f6;
-        --success-color: #10b981;
-        --error-color: #ef4444;
-        --warning-color: #f59e0b;
-    }
-}
+/* ═══════════════════════════════════════════════════════════════════════════════
+   CHAT INBOX - Uses global theme variables from index.css
+   No hardcoded colors - all use CSS variables for consistency
+   ═══════════════════════════════════════════════════════════════════════════════ */
 
 .chat-inbox {
     display: flex;
@@ -95,7 +59,7 @@
     border-radius: 8px;
     margin-top: 0.5rem;
     min-width: 200px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-lg);
     z-index: 100;
     overflow: hidden;
 }
@@ -307,7 +271,7 @@
     height: 48px;
     border-radius: 50%;
     overflow: hidden;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--accent-primary);
 }
 
 .chat-avatar img {
@@ -428,7 +392,7 @@
     border-radius: 999px;
     overflow: hidden;
     flex-shrink: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--accent-primary);
 }
 
 .result-avatar img {
@@ -519,22 +483,24 @@
 }
 
 .btn-accept {
-    background: var(--success-color);
+    background: var(--accent-success);
     color: white;
 }
 
 .btn-accept:hover {
-    background: #059669;
+    background: var(--accent-success);
+    opacity: 0.8;
     transform: scale(1.05);
 }
 
 .btn-reject {
-    background: var(--error-color);
+    background: var(--accent-error);
     color: white;
 }
 
 .btn-reject:hover {
-    background: #dc2626;
+    background: var(--accent-error);
+    opacity: 0.8;
     transform: scale(1.05);
 }
 
@@ -558,7 +524,8 @@
 }
 
 .btn-follow:hover {
-    background: #2563eb;
+    background: var(--accent-primary);
+    opacity: 0.8;
     transform: scale(1.05);
 }
 
