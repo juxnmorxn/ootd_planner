@@ -3,7 +3,6 @@ import { Eye, EyeOff, User, Lock } from 'lucide-react';
 import { db } from '../lib/db';
 import { useStore } from '../lib/store';
 import { Button } from '../components/ui/Button';
-import type { User as UserType } from '../types';
 
 interface AuthProps {
     onSuccess: () => void;

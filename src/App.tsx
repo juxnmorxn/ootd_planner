@@ -26,7 +26,7 @@ function App() {
   const isViewingIndividualChat = useStore((state) => state.isViewingIndividualChat);
 
   // ✅ Inicializar el tema al cargar la app
-  const { theme } = useTheme();
+  useTheme();
   
   // ✅ Aplicar tema guardado desde localStorage al iniciar
   useEffect(() => {
