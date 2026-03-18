@@ -1,7 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { useTheme } from '../lib/theme';
-import { ThemeSwitch } from '../components/ui/ThemeSwitch';
 import { Button } from '../components/ui/Button';
 
 export function Fondos() {

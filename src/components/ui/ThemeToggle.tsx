@@ -2,25 +2,26 @@ import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '../../lib/theme';
 
 export function ThemeToggle() {
-    const { theme, toggleTheme } = useTheme();
+    const { mode, setMode, getEffectiveTheme } = useTheme();
+    const effectiveTheme = getEffectiveTheme();
 
     return (
         <button
-            onClick={toggleTheme}
+            onClick={() => setMode(mode === 'auto' ? (effectiveTheme === 'dark' ? 'light' : 'dark') : (mode === 'light' ? 'dark' : 'auto'))}
             className="relative w-14 h-8 rounded-full transition-colors flex items-center px-1"
             style={{
-                backgroundColor: theme === 'dark' ? 'var(--bg-tertiary)' : 'var(--bg-tertiary)',
+                backgroundColor: 'var(--bg-tertiary)',
                 border: `1px solid var(--border-primary)`,
             }}
-            aria-label={`Cambiar a tema ${theme === 'light' ? 'oscuro' : 'claro'}`}
+            aria-label="Cambiar tema"
         >
             <div
                 className="absolute transition-all"
                 style={{
-                    left: theme === 'dark' ? '6px' : '22px',
+                    left: effectiveTheme === 'dark' ? '6px' : '22px',
                 }}
             >
-                {theme === 'light' ? (
+                {effectiveTheme === 'light' ? (
                     <Sun className="w-4 h-4" style={{ color: 'var(--text-primary)' }} />
                 ) : (
                     <Moon className="w-4 h-4" style={{ color: 'var(--text-primary)' }} />
