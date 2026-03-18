@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Eye, EyeOff, User, Lock } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import { db } from '../lib/db';
 import { useStore } from '../lib/store';
 import { Button } from '../components/ui/Button';
@@ -21,31 +20,6 @@ export function Auth({ onSuccess }: AuthProps) {
     const [error, setError] = useState('');
 
     const setCurrentUser = useStore((state) => state.setCurrentUser);
-
-    const isOffline = useMemo(() => (typeof navigator !== 'undefined' ? !navigator.onLine : false), []);
-
-    const continueOffline = () => {
-        const now = new Date().toISOString();
-        const safeEmail = (email || '').trim();
-        const safeUsername = (username || '').trim();
-
-        const finalEmail = safeEmail || `${safeUsername || 'user'}@offline.local`;
-        const finalUsername = safeUsername || finalEmail.split('@')[0];
-
-        const offlineUser: UserType = {
-            id: uuidv4(),
-            email: finalEmail,
-            username: finalUsername,
-            role: 'user',
-            created_at: now,
-            updated_at: now,
-            loginTimestamp: Date.now(), // Guardar timestamp de login
-            lastSyncTimestamp: 0, // Nunca sincronizado
-        };
-
-        setCurrentUser(offlineUser);
-        onSuccess();
-    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -261,26 +235,6 @@ export function Auth({ onSuccess }: AuthProps) {
                         )}
                     </Button>
                 </form>
-
-                {/* Offline Mode */}
-                <div className="mt-4">
-                    <button
-                        type="button"
-                        onClick={continueOffline}
-                        className="w-full px-4 py-3 rounded-xl border font-semibold transition-colors"
-                        style={{
-                            borderColor: 'var(--border-primary)',
-                            color: 'var(--text-secondary)',
-                        }}
-                    >
-                        Continuar offline
-                    </button>
-                    <p className="mt-2 text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
-                        {isOffline
-                            ? 'Sin conexión: usarás solo datos locales (se sincroniza cuando haya internet).'
-                            : 'También puedes usar la app sin crear cuenta (modo local).'}
-                    </p>
-                </div>
 
                 {/* Toggle Mode */}
                 <div className="mt-6 text-center">

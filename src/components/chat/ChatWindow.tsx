@@ -23,6 +23,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
     const touchStartXRef = useRef<number>(0);
     const touchStartTimeRef = useRef<number>(0);
 
+    // Detectar si es móvil para mostrar botón back
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     // Fix para iOS/Safari - ajustar 100vh cuando se abre el teclado
     useEffect(() => {
         const fixVH = () => {
@@ -154,14 +163,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
             onTouchEnd={handleTouchEnd}
         >
             <div className="chat-header">
-                {onBack && (
+                {/* Botón back siempre visible en móvil */}
+                {(onBack && isMobile) && (
                     <button
                         type="button"
                         className="chat-header-back"
                         onClick={onBack}
-                        title="Atrás (también puedes deslizar)"
+                        title="Volver"
+                        aria-label="Volver atrás"
                     >
-                        <ArrowLeft size={20} />
+                        <ArrowLeft size={24} strokeWidth={2.5} />
                     </button>
                 )}
                 <div className="chat-header-info">
