@@ -2,10 +2,12 @@ import { ArrowLeft } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { useTheme } from '../lib/theme';
 import { ThemeSwitch } from '../components/ui/ThemeSwitch';
+import { Button } from '../components/ui/Button';
 
 export function Fondos() {
     const setView = useStore((state) => state.setCurrentView);
-    const { theme } = useTheme();
+    const { mode, setMode, getEffectiveTheme } = useTheme();
+    const effectiveTheme = getEffectiveTheme();
 
     return (
         <div style={{ backgroundColor: 'var(--bg-primary)' }} className="min-h-screen">
@@ -56,21 +58,43 @@ export function Fondos() {
                                 borderColor: 'var(--border-primary)',
                             }}
                         >
-                            <div className="flex items-center justify-between mb-3">
-                                <h2 
-                                    className="font-semibold"
-                                    style={{ color: 'var(--text-primary)' }}
-                                >
-                                    Tema
-                                </h2>
-                                <ThemeSwitch />
-                            </div>
+                            <h2 
+                                className="font-semibold mb-4"
+                                style={{ color: 'var(--text-primary)' }}
+                            >
+                                Tema
+                            </h2>
                             <p 
-                                className="text-sm"
+                                className="text-xs mb-4"
                                 style={{ color: 'var(--text-tertiary)' }}
                             >
-                                Tema actual: <span style={{ color: 'var(--text-secondary)' }}>{theme === 'light' ? 'Claro' : 'Oscuro'}</span>
+                                Modo actual: <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>
+                                    {mode === 'auto' ? `Automático (${effectiveTheme === 'dark' ? 'Oscuro' : 'Claro'})` : (mode === 'light' ? 'Claro' : 'Oscuro')}
+                                </span>
                             </p>
+                            <div className="space-y-2">
+                                <Button
+                                    variant={mode === 'auto' ? 'primary' : 'secondary'}
+                                    onClick={() => setMode('auto')}
+                                    className="w-full text-sm"
+                                >
+                                    🔄 Automático
+                                </Button>
+                                <Button
+                                    variant={mode === 'light' ? 'primary' : 'secondary'}
+                                    onClick={() => setMode('light')}
+                                    className="w-full text-sm"
+                                >
+                                    ☀️ Claro
+                                </Button>
+                                <Button
+                                    variant={mode === 'dark' ? 'primary' : 'secondary'}
+                                    onClick={() => setMode('dark')}
+                                    className="w-full text-sm"
+                                >
+                                    🌙 Oscuro
+                                </Button>
+                            </div>
                         </div>
 
                         <div 

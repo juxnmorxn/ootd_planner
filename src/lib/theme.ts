@@ -1,30 +1,48 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type Theme = 'light' | 'dark';
+type ThemeMode = 'auto' | 'light' | 'dark';
 
 interface ThemeState {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-  toggleTheme: () => void;
+  mode: ThemeMode;
+  setMode: (mode: ThemeMode) => void;
+  applyTheme: () => void;
+  getEffectiveTheme: () => 'light' | 'dark';
 }
+
+// Detectar preferencia de color del sistema
+const getSystemTheme = (): 'light' | 'dark' => {
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
+
+// Aplicar tema al documento
+const applyThemeToDOM = (theme: 'light' | 'dark') => {
+  if (theme === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+};
 
 export const useTheme = create<ThemeState>()(
   persist(
     (set, get) => ({
-      theme: 'light',
-      setTheme: (theme: Theme) => {
-        set({ theme });
-        // Aplicar clase CSS al HTML root
-        if (theme === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
+      mode: 'auto',
+      setMode: (mode: ThemeMode) => {
+        set({ mode });
+        get().applyTheme();
       },
-      toggleTheme: () => {
-        const newTheme = get().theme === 'light' ? 'dark' : 'light';
-        get().setTheme(newTheme);
+      applyTheme: () => {
+        const effectiveTheme = get().getEffectiveTheme();
+        applyThemeToDOM(effectiveTheme);
+      },
+      getEffectiveTheme: () => {
+        const mode = get().mode;
+        if (mode === 'auto') {
+          return getSystemTheme();
+        }
+        return mode;
       },
     }),
     {
@@ -32,12 +50,8 @@ export const useTheme = create<ThemeState>()(
       onRehydrateStorage: () => (state) => {
         // Aplicar tema guardado al cargar
         if (state) {
-          const theme = state.theme || 'light';
-          if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
+          const effectiveTheme = state.mode === 'auto' ? getSystemTheme() : state.mode;
+          applyThemeToDOM(effectiveTheme);
         }
       },
     }

@@ -52,27 +52,43 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
         return () => clearTimeout(timer);
     }, [currentMessages, typingUsers]);
 
-    // Auto-scroll cuando se abre el input - más agresivo
+    // Auto-scroll cuando se abre el input - más agresivo para móvil
     const handleInputFocus = () => {
-        // Primero scroll suave al final
-        setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+        // Scroll inmediato y agresivo al input para que esté visible encima del teclado
+        const scrollToInput = () => {
+            if (inputRef.current) {
+                // Usar scrollIntoView con block: 'end' para llevar el input al final de la pantalla visible
+                inputRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+                // Asegurar scroll al fondo del contenedor de mensajes
+                messagesContainerRef.current?.scrollTo({
+                    top: messagesContainerRef.current.scrollHeight,
+                    behavior: 'auto',
+                });
+            }
+        };
         
-        // Luego scroll directo al input (asegura que esté visible encima del teclado)
-        setTimeout(() => {
-            inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 300);
+        // Scrolls inmediatos 
+        scrollToInput();
+        setTimeout(scrollToInput, 100);
+        setTimeout(scrollToInput, 300);
     };
 
     // Listener para detectar cuando el viewport cambia (teclado aparece)
     useEffect(() => {
         const handleResize = () => {
-            // Si el input está focused y el viewport se reduce, hacer scroll
+            // Si el input está focused y el viewport se reduce, hacer scroll agresivo
             if (inputRef.current === document.activeElement) {
-                setTimeout(() => {
-                    inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }, 100);
+                const scrollToInput = () => {
+                    if (inputRef.current) {
+                        inputRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+                        messagesContainerRef.current?.scrollTo({
+                            top: messagesContainerRef.current.scrollHeight,
+                            behavior: 'auto',
+                        });
+                    }
+                };
+                scrollToInput();
+                setTimeout(scrollToInput, 100);
             }
         };
         

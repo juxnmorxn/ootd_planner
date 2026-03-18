@@ -312,29 +312,11 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                     </div>
                 )}
 
-                {/* Social & Contacts */}
-                <div
-                    className="rounded-2xl shadow-sm border p-6"
-                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
-                >
-                    <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Mensajes</h3>
-                    <p className="text-sm mb-4 text-left" style={{ color: 'var(--text-secondary)' }}>
-                        Agrega amigos por su nombre de usuario, gestiona solicitudes de amistad y chatea solo con tus contactos aceptados.
-                    </p>
-                    <div className="flex flex-col gap-3">
-                        <Button
-                            onClick={() => setView('chat-inbox')}
-                            className="w-full flex items-center justify-center gap-2"
-                        >
-                            💬
-                            Ir a mensajes
-                        </Button>
-                    </div>
-                </div>
+
 
                 {/* Appearance */}
                 <div
-                    className="rounded-2xl shadow-sm border border-slate-100 p-6"
+                    className="rounded-2xl shadow-sm border p-6"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
                 >
                     <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Apariencia</h3>
@@ -360,7 +342,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
 
                 {/* Edit Profile */}
                 <div
-                    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6"
+                    className="rounded-2xl shadow-sm border p-6"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
                 >
                     <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Información Personal</h3>
@@ -458,7 +440,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
 
                 {/* Change Password */}
                 <div
-                    className="bg-white rounded-2xl shadow-sm border p-6"
+                    className="rounded-2xl shadow-sm border p-6"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
                 >
                     <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
@@ -530,67 +512,7 @@ export function Profile({ onBack, onLogout }: ProfileProps) {
                     )}
                 </div>
 
-                {/* Synchronization & Storage */}
-                <div
-                    className="bg-white rounded-2xl shadow-sm border p-6"
-                    style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
-                >
-                    <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-                        Sincronización
-                    </h3>
-                    <div className="space-y-4">
-                        {/* Last Sync Info */}
-                        <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'var(--border-primary)' }}>
-                            <div className="flex items-center space-x-2">
-                                <Clock className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
-                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Última sincronización</span>
-                            </div>
-                            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                                {currentUser?.lastSyncTimestamp && currentUser.lastSyncTimestamp > 0
-                                    ? formatLastSync(currentUser.lastSyncTimestamp)
-                                    : 'Nunca'}
-                            </span>
-                        </div>
 
-                        {/* Session Info */}
-                        <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'var(--border-primary)' }}>
-                            <div className="flex items-center space-x-2">
-                                <Clock className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
-                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Sesión válida por</span>
-                            </div>
-                            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                                {currentUser?.loginTimestamp
-                                    ? `${Math.max(0, sessionDaysLeft)} días`
-                                    : 'N/A'}
-                            </span>
-                        </div>
-
-                        {/* Sync Button */}
-                        <Button
-                            onClick={handleManualSync}
-                            disabled={syncing}
-                            className="w-full"
-                        >
-                            <RefreshCw className={`w-5 h-5 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                            {syncing ? 'Sincronizando...' : 'Sincronizar Ahora'}
-                        </Button>
-
-                        {/* Clear Data Button */}
-                        <Button
-                            variant="secondary"
-                            onClick={handleClearData}
-                            className="w-full"
-                        >
-                            <Trash2 className="w-5 h-5 mr-2" />
-                            Borrar Datos Locales
-                        </Button>
-
-                        <p className="text-xs mt-3" style={{ color: 'var(--text-tertiary)' }}>
-                            Las imágenes se sincronizan automáticamente con Cloudinary cuando hay conexión.
-                            Tus datos están seguros en múltiples dispositivos.
-                        </p>
-                    </div>
-                </div>
 
                 {/* Danger Zone */}
                 <div className="rounded-2xl shadow-sm border p-6" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-danger, #fecaca)' }}>

@@ -226,7 +226,7 @@ export function Auth({ onSuccess }: AuthProps) {
                     >
                         {loading ? (
                             <span className="flex items-center justify-center gap-2">
-                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--btn-primary-text)', borderTopColor: 'transparent' }} />
                                 {mode === 'login' ? 'Iniciando sesión...' : 'Creando cuenta...'}
                             </span>
                         ) : (
