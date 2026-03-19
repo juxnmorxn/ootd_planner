@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
 import { ToastProvider } from './components/ui/Toast';
+import { useStore } from './lib/store';
 
 // Shim básico para librerías que esperan "process" en entorno browser
 declare global {
@@ -84,9 +85,26 @@ if ('serviceWorker' in navigator) {
 // Manejar mensajes del Service Worker
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
+    if (!event.data || !event.data.type) return;
+
+    if (event.data.type === 'UPDATE_AVAILABLE') {
       console.log('[PWA] Update available, reloading...');
       window.location.reload();
+      return;
+    }
+
+    if (event.data.type === 'OPEN_CONVERSATION') {
+      const payload = event.data.payload || {};
+      const senderId = payload.senderId as string | undefined;
+      if (!senderId) return;
+
+      try {
+        const { setCurrentView, setCurrentChatTargetUserId } = useStore.getState();
+        setCurrentChatTargetUserId(senderId);
+        setCurrentView('chat-inbox');
+      } catch (err) {
+        console.error('[PWA] Failed to route notification click:', err);
+      }
     }
   });
 }

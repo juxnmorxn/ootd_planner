@@ -58,6 +58,8 @@ export const useWebSocket = (userId: string | null) => {
     // aunque el socket aún no se haya conectado.
     const messageReceivedHandlers = useRef<Array<(m: WebSocketMessage) => void>>([]);
     const messageSentHandlers = useRef<Array<(d: { id: string; created_at: string }) => void>>([]);
+    const messageDeliveredHandlers = useRef<Array<(d: { id: string }) => void>>([]);
+    const messageReadHandlers = useRef<Array<(d: { messageId: string; userId: string }) => void>>([]);
     const messageErrorHandlers = useRef<Array<(e: { error: string; details?: string }) => void>>([]);
     const userStatusHandlers = useRef<Array<(s: UserStatus) => void>>([]);
     const userTypingHandlers = useRef<Array<(t: TypingIndicator) => void>>([]);
@@ -107,6 +109,14 @@ export const useWebSocket = (userId: string | null) => {
 
         socket.on('message:sent', (data: { id: string; created_at: string }) => {
             messageSentHandlers.current.forEach((cb) => cb(data));
+        });
+
+        socket.on('message:delivered', (data: { id: string }) => {
+            messageDeliveredHandlers.current.forEach((cb) => cb(data));
+        });
+
+        socket.on('message:read', (data: { messageId: string; userId: string }) => {
+            messageReadHandlers.current.forEach((cb) => cb(data));
         });
 
         socket.on('message:error', (err: { error: string; details?: string }) => {
@@ -205,10 +215,18 @@ export const useWebSocket = (userId: string | null) => {
         };
     }, []);
 
+    const onMessageDelivered = useCallback((callback: (data: { id: string }) => void) => {
+        messageDeliveredHandlers.current.push(callback);
+        return () => {
+            messageDeliveredHandlers.current = messageDeliveredHandlers.current.filter((cb) => cb !== callback);
+        };
+    }, []);
+
     const onMessageRead = useCallback((callback: (data: { messageId: string; userId: string }) => void) => {
-        if (!socketRef.current) return () => {};
-        socketRef.current.on('message:read', callback);
-        return () => socketRef.current?.off('message:read', callback);
+        messageReadHandlers.current.push(callback);
+        return () => {
+            messageReadHandlers.current = messageReadHandlers.current.filter((cb) => cb !== callback);
+        };
     }, []);
 
     const onMessageError = useCallback((callback: (error: { error: string; details?: string }) => void) => {
@@ -253,6 +271,7 @@ export const useWebSocket = (userId: string | null) => {
         markMessageAsRead,
         onMessageReceived,
         onMessageSent,
+        onMessageDelivered,
         onMessageRead,
         onMessageError,
         onUserStatus,

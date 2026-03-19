@@ -23,7 +23,7 @@ type TabType = 'messages' | 'requests';
 export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     const { conversations, getConversations, onContactRequest, onContactAccepted } = useChat(userId);
     const { sendRequest } = useContacts();
-    const { currentUser, setIsViewingIndividualChat } = useStore();
+    const { currentUser, setIsViewingIndividualChat, currentChatTargetUserId, setCurrentChatTargetUserId } = useStore();
     
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -93,6 +93,26 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
         };
         load();
     }, [userId, getConversations, loadPendingRequests, loadSentRequests]);
+
+    // Si viene una orden externa (notificación) para abrir chat con un usuario concreto
+    useEffect(() => {
+        if (!currentChatTargetUserId) return;
+
+        const targetConv = conversations.find(
+            (c) => c.other_user?.id === currentChatTargetUserId,
+        );
+
+        if (targetConv) {
+            setSelectedConversationId(targetConv.id);
+            setActiveTab('messages');
+            if (isMobile) {
+                setShowChatView(true);
+            }
+        }
+
+        // Consumir la orden para no reabrir en bucle
+        setCurrentChatTargetUserId(null);
+    }, [currentChatTargetUserId, conversations, isMobile, setCurrentChatTargetUserId]);
 
     // Escuchar cambios de contactos en tiempo real (solicitudes nuevas y aceptaciones)
     useEffect(() => {

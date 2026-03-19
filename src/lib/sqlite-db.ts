@@ -146,6 +146,23 @@ class SQLiteDatabase {
       CREATE INDEX IF NOT EXISTS idx_messages_created 
       ON messages(created_at DESC)
     `);
+
+                // Tabla de suscripciones de notificaciones push
+                this.db.exec(`
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                endpoint TEXT NOT NULL UNIQUE,
+                keys_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+                this.db.exec(`
+            CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user 
+            ON push_subscriptions(user_id)
+        `);
     }
 
     // ============ USERS ============
@@ -620,6 +637,49 @@ class SQLiteDatabase {
     deleteMessage(id: string): void {
         const stmt = this.db.prepare('DELETE FROM messages WHERE id = ?');
         stmt.run(id);
+    }
+
+    // ============ PUSH SUBSCRIPTIONS ============
+
+    upsertPushSubscription(userId: string, endpoint: string, keysJson: string): void {
+        const now = new Date().toISOString();
+
+        // Usamos el endpoint como id estable para evitar dependencias extra
+        const existing = this.db.prepare(
+            'SELECT id FROM push_subscriptions WHERE endpoint = ?'
+        ).get(endpoint) as any;
+
+        if (existing && existing.id) {
+            const updateStmt = this.db.prepare(
+                'UPDATE push_subscriptions SET user_id = ?, keys_json = ?, created_at = ? WHERE id = ?'
+            );
+            updateStmt.run(userId, keysJson, now, existing.id);
+        } else {
+            const insertStmt = this.db.prepare(`
+        INSERT INTO push_subscriptions (id, user_id, endpoint, keys_json, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+            insertStmt.run(endpoint, userId, endpoint, keysJson, now);
+        }
+    }
+
+    getPushSubscriptionsByUser(userId: string): Array<{ id: string; endpoint: string; keys_json: string }> {
+        const stmt = this.db.prepare(
+            'SELECT id, endpoint, keys_json FROM push_subscriptions WHERE user_id = ?'
+        );
+        const rows = stmt.all(userId) as any[];
+        return rows.map((row) => ({
+            id: row.id,
+            endpoint: row.endpoint,
+            keys_json: row.keys_json,
+        }));
+    }
+
+    deletePushSubscription(userId: string, endpoint: string): void {
+        const stmt = this.db.prepare(
+            'DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?'
+        );
+        stmt.run(userId, endpoint);
     }
 
     // ============ UTILITY ============

@@ -139,6 +139,43 @@
     color: var(--text-tertiary);
     margin-top: 0.25rem;
     padding: 0 0.3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.message-time-text {
+    white-space: nowrap;
+}
+
+.delivery-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 1px;
+    border-radius: 4px;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-secondary);
+}
+
+.delivery-segment {
+    width: 4px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--border-secondary);
+}
+
+.delivery-stage-0 .delivery-segment:nth-child(1) {
+    background: var(--accent-primary);
+}
+
+.delivery-stage-1 .delivery-segment:nth-child(1),
+.delivery-stage-1 .delivery-segment:nth-child(2) {
+    background: var(--accent-primary);
+}
+
+.delivery-stage-2 .delivery-segment {
+    background: var(--accent-primary);
 }
 
 .chat-input-form {

@@ -12,7 +12,7 @@ interface ChatWindowProps {
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, recipientId, otherUsername, onBack }) => {
-    const { currentMessages, getMessages, sendMessage, markConversationAsRead, sendTypingIndicator, typingUsers, userStatuses } = useChat(userId);
+    const { currentMessages, getMessages, sendMessage, markAsRead, markConversationAsRead, sendTypingIndicator, typingUsers, userStatuses } = useChat(userId);
     const [messageContent, setMessageContent] = useState('');
     const [loading, setLoading] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
@@ -20,6 +20,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
     const inputRef = useRef<HTMLInputElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const markedMessagesRef = useRef<Set<string>>(new Set());
     const touchStartXRef = useRef<number>(0);
     const touchStartTimeRef = useRef<number>(0);
 
@@ -68,6 +69,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
         
         return () => clearInterval(syncInterval);
     }, [conversationId, getMessages, markConversationAsRead]);
+
+    // Marcar como leídos los mensajes entrantes en cuanto estén cargados
+    useEffect(() => {
+        if (!currentMessages.length) return;
+
+        currentMessages.forEach((msg) => {
+            // Solo marcar como leído mensajes que vienen del otro usuario
+            if (msg.sender_id === userId) return;
+            if (msg.read) return;
+            if (markedMessagesRef.current.has(msg.id)) return;
+
+            markedMessagesRef.current.add(msg.id);
+            markAsRead(msg.id, conversationId, userId);
+        });
+    }, [currentMessages, conversationId, userId, markAsRead]);
 
     // Detectar swipe hacia la izquierda (gesto nativo)
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -136,6 +152,25 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
     const otherUserStatus = userStatuses.get(recipientId);
     const isOtherUserTyping = typingUsers.has(recipientId);
 
+    const getDeliveryStage = (msg: any): number | null => {
+        if (msg.sender_id !== userId) return null;
+
+        const status = msg.delivery_status as
+            | 'pending'
+            | 'sent'
+            | 'delivered'
+            | 'read'
+            | undefined;
+
+        // 0 = enviando (pendiente)
+        // 1 = enviado / entregado
+        // 2 = leído
+        if (status === 'pending' || msg.id === 'pending') return 0;
+        if (status === 'read' || msg.read) return 2;
+        if (status === 'sent' || status === 'delivered') return 1;
+        return 1;
+    };
+
     return (
         <div 
             className="chat-window"
@@ -171,21 +206,32 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
                 {currentMessages.length === 0 ? (
                     <p className="no-messages">No hay mensajes aún. ¡Inicia la conversación!</p>
                 ) : (
-                    currentMessages.map((msg) => (
-                        <div
-                            key={msg.id}
-                            className={`message ${msg.sender_id === userId ? 'sent' : 'received'}`}
-                        >
-                            <div className="message-content">{msg.content}</div>
-                            <div className="message-time">
-                                {new Date(msg.created_at).toLocaleTimeString([], {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                })}
-                                {msg.sender_id === userId && (msg.read ? ' ✓✓' : ' ✓')}
+                    currentMessages.map((msg) => {
+                        const stage = getDeliveryStage(msg);
+                        return (
+                            <div
+                                key={msg.id}
+                                className={`message ${msg.sender_id === userId ? 'sent' : 'received'}`}
+                            >
+                                <div className="message-content">{msg.content}</div>
+                                <div className="message-time">
+                                    <span className="message-time-text">
+                                        {new Date(msg.created_at).toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        })}
+                                    </span>
+                                    {stage !== null && (
+                                        <div className={`delivery-bar delivery-stage-${stage}`} aria-hidden="true">
+                                            <span className="delivery-segment" />
+                                            <span className="delivery-segment" />
+                                            <span className="delivery-segment" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
 
                 {isOtherUserTyping && (

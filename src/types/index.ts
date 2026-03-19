@@ -116,6 +116,12 @@ export interface Message {
 
 export interface MessageWithSender extends Message {
     sender?: Pick<User, 'id' | 'username' | 'profile_pic'>;
+    // Estado de entrega local (para UI):
+    //  - pending: todavía enviando
+    //  - sent: guardado/enviado
+    //  - delivered: llegó al otro usuario (no siempre disponible)
+    //  - read: el otro usuario lo abrió
+    delivery_status?: 'pending' | 'sent' | 'delivered' | 'read';
 }
 
 export interface ConversationWithData extends Conversation {

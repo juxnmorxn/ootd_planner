@@ -7,6 +7,7 @@ const { randomUUID } = require('crypto');
 const { createClient } = require('@libsql/client');
 const http = require('http');
 const { Server: SocketIOServer } = require('socket.io');
+const webpush = require('web-push');
 require('dotenv').config();
 
 const app = express();
@@ -28,6 +29,20 @@ const turso = createClient({
   url: process.env.TURSO_DATABASE_URL,
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
+
+// === Web Push (VAPID) ===
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY,
+  );
+} else {
+  console.warn('[Push] VAPID keys not configured; web push will be disabled.');
+}
 
 async function initDb() {
   // Users
@@ -156,6 +171,23 @@ async function initDb() {
   await turso.execute(`
     CREATE INDEX IF NOT EXISTS idx_messages_created
     ON messages(created_at DESC);
+  `);
+
+  // Push subscriptions
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      keys_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user
+    ON push_subscriptions(user_id);
   `);
 
   console.log('[Turso] Schema ensured');
@@ -311,6 +343,69 @@ async function getConversationById(conversationId) {
   return rows[0] || null;
 }
 
+async function upsertPushSubscription(userId, endpoint, keysJson) {
+  const now = new Date().toISOString();
+
+  const { rows } = await turso.execute({
+    sql: 'SELECT id FROM push_subscriptions WHERE endpoint = ?1',
+    args: [endpoint],
+  });
+
+  const id = rows[0]?.id || endpoint; // usar endpoint como id estable si no existe
+
+  if (rows.length > 0) {
+    await turso.execute({
+      sql: 'UPDATE push_subscriptions SET user_id = ?1, keys_json = ?2, created_at = ?3 WHERE id = ?4',
+      args: [userId, keysJson, now, id],
+    });
+  } else {
+    await turso.execute({
+      sql: 'INSERT INTO push_subscriptions (id, user_id, endpoint, keys_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5)',
+      args: [id, userId, endpoint, keysJson, now],
+    });
+  }
+}
+
+async function deletePushSubscription(userId, endpoint) {
+  await turso.execute({
+    sql: 'DELETE FROM push_subscriptions WHERE user_id = ?1 AND endpoint = ?2',
+    args: [userId, endpoint],
+  });
+}
+
+async function getPushSubscriptionsByUser(userId) {
+  const { rows } = await turso.execute({
+    sql: 'SELECT id, endpoint, keys_json FROM push_subscriptions WHERE user_id = ?1',
+    args: [userId],
+  });
+  return rows || [];
+}
+
+async function sendPushNotificationToUser(userId, payload) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+
+  const subs = await getPushSubscriptionsByUser(userId);
+  if (!subs.length) return;
+
+  const body = JSON.stringify(payload);
+
+  for (const sub of subs) {
+    try {
+      const subscription = {
+        endpoint: sub.endpoint,
+        keys: JSON.parse(sub.keys_json),
+      };
+      await webpush.sendNotification(subscription, body);
+    } catch (error) {
+      if (error && (error.statusCode === 404 || error.statusCode === 410)) {
+        await deletePushSubscription(userId, sub.endpoint);
+      } else {
+        console.error('[Push] Error sending notification:', error && error.message ? error.message : error);
+      }
+    }
+  }
+}
+
 // ============ USERS & AUTH ============
 
 // Basic list (health-check)
@@ -429,6 +524,52 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (error) {
     console.error('[API] Login error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ CONTACTS ============
+
+// ============ PUSH NOTIFICATIONS ============
+
+// Obtener la clave pública VAPID para el cliente
+app.get('/api/push/public-key', (req, res) => {
+  if (!VAPID_PUBLIC_KEY) {
+    return res.status(503).json({ error: 'Push not configured' });
+  }
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+// Registrar/actualizar suscripción de push para un usuario
+app.post('/api/push/subscribe', async (req, res) => {
+  try {
+    const { user_id, subscription } = req.body;
+
+    if (!user_id || !subscription || !subscription.endpoint || !subscription.keys) {
+      return res.status(400).json({ error: 'user_id y subscription válidos requeridos' });
+    }
+
+    await upsertPushSubscription(user_id, subscription.endpoint, JSON.stringify(subscription.keys));
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Push] Error on subscribe:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cancelar suscripción de push
+app.post('/api/push/unsubscribe', async (req, res) => {
+  try {
+    const { user_id, endpoint } = req.body;
+
+    if (!user_id || !endpoint) {
+      return res.status(400).json({ error: 'user_id y endpoint requeridos' });
+    }
+
+    await deletePushSubscription(user_id, endpoint);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Push] Error on unsubscribe:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1822,25 +1963,54 @@ initDb()
 
           console.log(`[Socket.io] Message saved to DB: ${id}`);
 
-          // 2. Enviar confirmación al remitente
+          // 2. Enviar confirmación al remitente (guardado en servidor)
           socket.emit('message:sent', {
             id,
             created_at: now,
-            status: 'delivered',
           });
 
-          // 3. Enviar al recipiente si está online
-          io.to(`user:${recipientId}`).emit('message:received', {
-            id,
-            conversation_id: conversationId,
-            sender_id: senderId,
-            content: content.trim(),
-            message_type: 'text',
-            read: false,
-            created_at: now,
-          });
+          // 3. Determinar si el receptor está online (room con sockets)
+          const room = io.sockets.adapter.rooms.get(`user:${recipientId}`);
+          const recipientOnline = !!(room && room.size > 0);
 
-          console.log(`[Socket.io] Message delivered to recipient: ${recipientId}`);
+          if (recipientOnline) {
+            // Entregar en tiempo real al receptor
+            io.to(`user:${recipientId}`).emit('message:received', {
+              id,
+              conversation_id: conversationId,
+              sender_id: senderId,
+              content: content.trim(),
+              message_type: 'text',
+              read: false,
+              created_at: now,
+            });
+
+            // Notificar al remitente que llegó al dispositivo del otro
+            io.to(`user:${senderId}`).emit('message:delivered', { id });
+
+            console.log(`[Socket.io] Message delivered to recipient online: ${recipientId}`);
+          } else {
+            // Receptor offline: intentar enviar notificación push
+            try {
+              const senderUser = await getUserById(senderId);
+              const title = senderUser
+                ? `Nuevo mensaje de ${senderUser.username || senderUser.email}`
+                : 'Nuevo mensaje';
+
+              await sendPushNotificationToUser(recipientId, {
+                title,
+                body: content.trim(),
+                data: {
+                  conversationId,
+                  senderId,
+                },
+              });
+
+              console.log(`[Socket.io] Recipient offline; push notification sent (if subscribed): ${recipientId}`);
+            } catch (pushError) {
+              console.error('[Push] Failed to send push notification:', pushError && pushError.message ? pushError.message : pushError);
+            }
+          }
         } catch (error) {
           console.error('[Socket.io] Error saving message:', error);
           socket.emit('message:error', { 

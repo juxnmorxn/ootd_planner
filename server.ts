@@ -1,12 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
+import webpush from 'web-push';
 import { db } from './src/lib/sqlite-db';
 import type { Garment, Outfit, User, Contact, Conversation, Message } from './src/types';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadImageToCloudinary } from './src/lib/cloudinary';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+
+dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
@@ -18,6 +22,20 @@ const io = new Server(httpServer, {
 });
 
 const PORT = 3001;
+
+// Configuración de Web Push (VAPID)
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+        process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
+        VAPID_PUBLIC_KEY,
+        VAPID_PRIVATE_KEY,
+    );
+} else {
+    console.warn('[Push] VAPID keys not configured. Push notifications are disabled.');
+}
 
 // Mapa para rastrear usuarios conectados: userId -> socketId
 const connectedUsers = new Map<string, string>();
@@ -642,6 +660,50 @@ app.post('/api/messages', (req, res) => {
 
         res.json(message);
     } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============ PUSH NOTIFICATIONS ============
+
+// Obtener la clave pública VAPID para el cliente
+app.get('/api/push/public-key', (req, res) => {
+    if (!VAPID_PUBLIC_KEY) {
+        return res.status(503).json({ error: 'Push not configured' });
+    }
+    res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+// Registrar/actualizar suscripción de push para un usuario
+app.post('/api/push/subscribe', (req, res) => {
+    try {
+        const { user_id, subscription } = req.body;
+
+        if (!user_id || !subscription || !subscription.endpoint || !subscription.keys) {
+            return res.status(400).json({ error: 'user_id y subscription válidos requeridos' });
+        }
+
+        db.upsertPushSubscription(user_id, subscription.endpoint, JSON.stringify(subscription.keys));
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('[Push] Error on subscribe:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Cancelar suscripción de push
+app.post('/api/push/unsubscribe', (req, res) => {
+    try {
+        const { user_id, endpoint } = req.body;
+
+        if (!user_id || !endpoint) {
+            return res.status(400).json({ error: 'user_id y endpoint requeridos' });
+        }
+
+        db.deletePushSubscription(user_id, endpoint);
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('[Push] Error on unsubscribe:', error);
         res.status(500).json({ error: error.message });
     }
 });

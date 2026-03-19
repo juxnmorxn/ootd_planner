@@ -72,11 +72,73 @@ export const useChat = (userId?: string) => {
     useEffect(() => {
         const unsubscribe = webSocket.onMessageSent((data) => {
             console.log('[Chat] Message confirmed sent:', data);
-            // Actualizar el estado local si es necesario
-            setCurrentMessages((prev) => 
-                prev.map((msg) => 
-                    msg.id === 'pending' ? { ...msg, id: data.id, created_at: data.created_at, status: 'delivered' } : msg
+            // Actualizar el estado local del mensaje optimista
+            setCurrentMessages((prev) =>
+                prev.map((msg) =>
+                    msg.id === 'pending'
+                        ? {
+                            ...msg,
+                            id: data.id,
+                            created_at: data.created_at,
+                            delivery_status: 'sent',
+                        }
+                        : msg
                 )
+            );
+        });
+        return unsubscribe;
+    }, [webSocket]);
+
+    // Escuchar estado "delivered" (llegó al dispositivo del otro usuario)
+    useEffect(() => {
+        const unsubscribe = webSocket.onMessageDelivered?.((data) => {
+            console.log('[Chat] Message delivered:', data);
+            setCurrentMessages((prev) =>
+                prev.map((msg) =>
+                    msg.id === data.id
+                        ? {
+                            ...msg,
+                            // Si ya está marcado como leído, no degradar el estado
+                            delivery_status: msg.delivery_status === 'read' ? 'read' : 'delivered',
+                        }
+                        : msg
+                )
+            );
+        });
+        return unsubscribe;
+    }, [webSocket]);
+
+    // Escuchar lecturas en tiempo real
+    useEffect(() => {
+        const unsubscribe = webSocket.onMessageRead?.((data) => {
+            console.log('[Chat] Message read:', data);
+            const { messageId } = data;
+
+            // Actualizar mensajes actuales
+            setCurrentMessages((prev) =>
+                prev.map((msg) =>
+                    msg.id === messageId
+                        ? {
+                            ...msg,
+                            read: true,
+                            delivery_status: 'read',
+                        }
+                        : msg
+                )
+            );
+
+            // Actualizar last_message en conversaciones si coincide
+            setConversations((prev) =>
+                prev.map((conv) => {
+                    if (!conv.last_message || conv.last_message.id !== messageId) return conv;
+                    return {
+                        ...conv,
+                        last_message: {
+                            ...conv.last_message,
+                            read: true,
+                        } as any,
+                    };
+                })
             );
         });
         return unsubscribe;
@@ -201,6 +263,7 @@ export const useChat = (userId?: string) => {
                     message_type: 'text',
                     read: false,
                     created_at: new Date().toISOString(),
+                    delivery_status: 'pending',
                 };
 
                 setCurrentMessages((prev) => [...prev, optimisticMessage]);

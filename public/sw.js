@@ -180,3 +180,53 @@ self.addEventListener('fetch', (event) => {
     }),
   );
 });
+
+// Manejo de notificaciones push
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch (e) {
+    data = { body: event.data.text() };
+  }
+
+  const title = data.title || 'Nuevo mensaje';
+  const options = {
+    body: data.body || '',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+    data: data.data || {},
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+
+  event.waitUntil((async () => {
+    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+    if (allClients.length > 0) {
+      const client = allClients[0];
+      await client.focus();
+      client.postMessage({
+        type: 'OPEN_CONVERSATION',
+        payload: data,
+      });
+      return;
+    }
+
+    const url = '/';
+    const newClient = await self.clients.openWindow(url);
+    if (newClient) {
+      newClient.postMessage({
+        type: 'OPEN_CONVERSATION',
+        payload: data,
+      });
+    }
+  })());
+});

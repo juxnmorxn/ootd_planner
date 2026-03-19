@@ -14,6 +14,26 @@ import { Fondos } from './pages/Fondos';
 
 import { AdminUsers } from './pages/AdminUsers';
 
+const API_BASE = (() => {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:3001/api';
+  }
+  return '/api';
+})();
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
@@ -215,6 +235,53 @@ function App() {
     logout();
     setView('auth');
   };
+
+  // Registrar suscripción de notificaciones push para el usuario actual
+  useEffect(() => {
+    if (!currentUser) return;
+    if (!('serviceWorker' in navigator) || !(window as any).PushManager) return;
+
+    (async () => {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          console.log('[Push] Notifications permission not granted');
+          return;
+        }
+
+        const keyRes = await fetch(`${API_BASE}/push/public-key`);
+        if (!keyRes.ok) {
+          console.warn('[Push] Public key not available');
+          return;
+        }
+        const { publicKey } = await keyRes.json();
+        if (!publicKey) return;
+
+        const applicationServerKey = urlBase64ToUint8Array(publicKey);
+
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
+          });
+        }
+
+        await fetch(`${API_BASE}/push/subscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: currentUser.id,
+            subscription,
+          }),
+        });
+      } catch (error) {
+        console.error('[Push] Failed to register push subscription:', error);
+      }
+    })();
+  }, [currentUser?.id]);
 
   if (!hasHydrated) {
     return (
