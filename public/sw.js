@@ -1,5 +1,8 @@
-const CACHE_NAME = 'ootd-v1';
-const RUNTIME_CACHE = 'ootd-runtime-v1';
+// Incrementar estos nombres cuando hagamos cambios importantes en la UI
+// para forzar que los clientes descarguen la versión nueva sin tener que
+// borrar datos manualmente.
+const CACHE_NAME = 'ootd-v2';
+const RUNTIME_CACHE = 'ootd-runtime-v2';
 const VERSION_KEY = 'ootd-app-version';
 
 const ASSETS = [
