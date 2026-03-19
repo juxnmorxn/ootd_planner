@@ -753,13 +753,18 @@ io.on('connection', (socket) => {
 
         db.createMessage(message);
 
-        // Enviar a ambos usuarios en la conversación
+        // Enviar mensaje en tiempo real a receptor y remitente
         const recipientSocketId = connectedUsers.get(data.recipientId);
         if (recipientSocketId) {
             io.to(recipientSocketId).emit('message:received', message);
         }
 
-        // Confirmar al remitente
+        const senderSocketId = connectedUsers.get(data.senderId);
+        if (senderSocketId) {
+            io.to(senderSocketId).emit('message:received', message);
+        }
+
+        // Confirmar metadatos al remitente (por si queremos actualizar estado)
         socket.emit('message:sent', { id: message.id, created_at: message.created_at });
     });
 
