@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Search, MessageCircle, ChevronDown } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
 import { useStore } from '../lib/store';
