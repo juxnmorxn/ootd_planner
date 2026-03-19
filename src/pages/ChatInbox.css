@@ -320,7 +320,7 @@
 .chat-name {
     margin: 0;
     font-size: 0.95rem;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text-primary);
 }
 
@@ -347,6 +347,22 @@
     border-radius: 50%;
     flex-shrink: 0;
     margin-left: 0.5rem;
+}
+
+/* Estado no leído estilo WhatsApp: nombre y último mensaje en negritas */
+.chat-item.unread .chat-name {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.chat-item.unread .chat-message {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.chat-item.unread .chat-time {
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 /* Search results */

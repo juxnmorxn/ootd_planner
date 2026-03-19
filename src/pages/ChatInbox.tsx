@@ -21,7 +21,7 @@ interface ChatInboxProps {
 type TabType = 'messages' | 'requests';
 
 export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
-    const { conversations, getConversations, onContactRequest, onContactAccepted } = useChat(userId);
+    const { conversations, getConversations, onContactRequest, onContactAccepted, markConversationAsRead } = useChat(userId);
     const { sendRequest } = useContacts();
     const { currentUser, setIsViewingIndividualChat, currentChatTargetUserId, setCurrentChatTargetUserId } = useStore();
     
@@ -190,6 +190,12 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     // Manejar abrir chat
     const handleOpenChat = async (conversation: ConversationWithData) => {
         setSelectedConversationId(conversation.id);
+        // Marcar la conversación como leída al abrirla (estilo WhatsApp)
+        try {
+            await markConversationAsRead(conversation.id);
+        } catch (err) {
+            console.error('Error marking conversation as read:', err);
+        }
         if (isMobile) {
             setShowChatView(true);
         }
@@ -365,12 +371,14 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                     {searchResults.chats.length > 0 && (
                                         <div className="search-section">
                                             <h3 className="section-title">Chats</h3>
-                                            {searchResults.chats.map((conv) => (
-                                                <div
-                                                    key={conv.id}
-                                                    className="chat-item"
-                                                    onClick={() => handleOpenChat(conv)}
-                                                >
+                                            {searchResults.chats.map((conv) => {
+                                                const hasUnread = (conv.unread_count ?? 0) > 0;
+                                                return (
+                                                    <div
+                                                        key={conv.id}
+                                                        className={`chat-item ${hasUnread ? 'unread' : ''}`}
+                                                        onClick={() => handleOpenChat(conv)}
+                                                    >
                                                     <div className="chat-avatar">
                                                         {conv.other_user?.profile_pic ? (
                                                             <img src={conv.other_user.profile_pic} alt="" />
@@ -394,11 +402,12 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                                             {conv.last_message?.content || 'Sin mensajes aún'}
                                                         </p>
                                                     </div>
-                                                    {conv.unread_count! > 0 && (
+                                                    {hasUnread && (
                                                         <span className="unread-dot"></span>
                                                     )}
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
 
@@ -463,12 +472,14 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                         </div>
                                     ) : (
                                         <div className="chats-list">
-                                            {conversations.map((conv) => (
-                                                <div
-                                                    key={conv.id}
-                                                    className={`chat-item ${selectedConversationId === conv.id ? 'active' : ''}`}
-                                                    onClick={() => handleOpenChat(conv)}
-                                                >
+                                            {conversations.map((conv) => {
+                                                const hasUnread = (conv.unread_count ?? 0) > 0;
+                                                return (
+                                                    <div
+                                                        key={conv.id}
+                                                        className={`chat-item ${selectedConversationId === conv.id ? 'active' : ''} ${hasUnread ? 'unread' : ''}`}
+                                                        onClick={() => handleOpenChat(conv)}
+                                                    >
                                                     <div className="chat-avatar">
                                                         {conv.other_user?.profile_pic ? (
                                                             <img src={conv.other_user.profile_pic} alt="" />
@@ -492,11 +503,12 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                                             {conv.last_message?.content || 'Sin mensajes aún'}
                                                         </p>
                                                     </div>
-                                                    {conv.unread_count! > 0 && (
+                                                    {hasUnread && (
                                                         <span className="unread-dot"></span>
                                                     )}
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </>

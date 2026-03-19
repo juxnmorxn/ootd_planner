@@ -122,6 +122,9 @@ export interface MessageWithSender extends Message {
     //  - delivered: llegó al otro usuario (no siempre disponible)
     //  - read: el otro usuario lo abrió
     delivery_status?: 'pending' | 'sent' | 'delivered' | 'read';
+    // ID temporal generado en el cliente para casar mensajes optimistas
+    // con la confirmación del servidor (message:sent)
+    client_id?: string;
 }
 
 export interface ConversationWithData extends Conversation {

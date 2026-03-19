@@ -57,7 +57,7 @@ export const useWebSocket = (userId: string | null) => {
     // Listas de handlers por tipo de evento para poder registrar callbacks
     // aunque el socket aún no se haya conectado.
     const messageReceivedHandlers = useRef<Array<(m: WebSocketMessage) => void>>([]);
-    const messageSentHandlers = useRef<Array<(d: { id: string; created_at: string }) => void>>([]);
+    const messageSentHandlers = useRef<Array<(d: { id: string; created_at: string; clientId?: string }) => void>>([]);
     const messageDeliveredHandlers = useRef<Array<(d: { id: string }) => void>>([]);
     const messageReadHandlers = useRef<Array<(d: { messageId: string; userId: string }) => void>>([]);
     const messageErrorHandlers = useRef<Array<(e: { error: string; details?: string }) => void>>([]);
@@ -107,7 +107,7 @@ export const useWebSocket = (userId: string | null) => {
             messageReceivedHandlers.current.forEach((cb) => cb(message));
         });
 
-        socket.on('message:sent', (data: { id: string; created_at: string }) => {
+        socket.on('message:sent', (data: { id: string; created_at: string; clientId?: string }) => {
             messageSentHandlers.current.forEach((cb) => cb(data));
         });
 
@@ -156,7 +156,8 @@ export const useWebSocket = (userId: string | null) => {
         conversationId: string,
         senderId: string,
         recipientId: string,
-        content: string
+        content: string,
+        clientId?: string
     ) => {
         if (!socketRef.current) return;
 
@@ -165,6 +166,7 @@ export const useWebSocket = (userId: string | null) => {
             senderId,
             recipientId,
             content,
+            clientId,
         });
     }, []);
 
@@ -208,7 +210,7 @@ export const useWebSocket = (userId: string | null) => {
         };
     }, []);
 
-    const onMessageSent = useCallback((callback: (data: { id: string; created_at: string }) => void) => {
+    const onMessageSent = useCallback((callback: (data: { id: string; created_at: string; clientId?: string }) => void) => {
         messageSentHandlers.current.push(callback);
         return () => {
             messageSentHandlers.current = messageSentHandlers.current.filter((cb) => cb !== callback);

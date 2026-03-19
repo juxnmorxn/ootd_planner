@@ -1943,7 +1943,7 @@ initDb()
 
       // Message events
       socket.on('message:send', async (data) => {
-        const { conversationId, senderId, recipientId, content } = data;
+        const { conversationId, senderId, recipientId, content, clientId } = data;
         
         if (!conversationId || !senderId || !recipientId || !content?.trim()) {
           console.error('[Socket.io] Invalid message data:', data);
@@ -1967,6 +1967,7 @@ initDb()
           socket.emit('message:sent', {
             id,
             created_at: now,
+            clientId,
           });
 
           // 3. Determinar si el receptor está online (room con sockets)

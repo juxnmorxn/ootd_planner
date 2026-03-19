@@ -844,6 +844,7 @@ io.on('connection', (socket) => {
         senderId: string;
         recipientId: string;
         content: string;
+        clientId?: string;
     }) => {
         // Guardar en BD
         const message: Message = {
@@ -870,7 +871,7 @@ io.on('connection', (socket) => {
         }
 
         // Confirmar metadatos al remitente (por si queremos actualizar estado)
-        socket.emit('message:sent', { id: message.id, created_at: message.created_at });
+        socket.emit('message:sent', { id: message.id, created_at: message.created_at, clientId: data.clientId });
     });
 
     // Indicador de "escribiendo"

@@ -72,18 +72,34 @@ export const useChat = (userId?: string) => {
     useEffect(() => {
         const unsubscribe = webSocket.onMessageSent((data) => {
             console.log('[Chat] Message confirmed sent:', data);
-            // Actualizar el estado local del mensaje optimista
+
+            // Actualizar el estado local del mensaje optimista casando por clientId
             setCurrentMessages((prev) =>
-                prev.map((msg) =>
-                    msg.id === 'pending'
-                        ? {
+                prev.map((msg) => {
+                    const anyMsg = msg as any;
+
+                    // Si tenemos clientId, usarlo para identificar el mensaje concreto
+                    if (data.clientId && anyMsg.client_id === data.clientId) {
+                        return {
                             ...msg,
                             id: data.id,
                             created_at: data.created_at,
                             delivery_status: 'sent',
-                        }
-                        : msg
-                )
+                        };
+                    }
+
+                    // Fallback legacy: si no hay clientId, usar el antiguo id 'pending'
+                    if (!data.clientId && msg.id === 'pending') {
+                        return {
+                            ...msg,
+                            id: data.id,
+                            created_at: data.created_at,
+                            delivery_status: 'sent',
+                        };
+                    }
+
+                    return msg;
+                })
             );
         });
         return unsubscribe;
@@ -254,6 +270,11 @@ export const useChat = (userId?: string) => {
 
             // Usar WebSocket si está conectado
             if (webSocket.socket?.connected) {
+                // ID temporal único en cliente para casar mensaje optimista con confirmación
+                const clientId = (window.crypto && 'randomUUID' in window.crypto)
+                    ? window.crypto.randomUUID()
+                    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
                 // Mensaje optimista local (tipo WhatsApp)
                 const optimisticMessage: MessageWithSender = {
                     id: 'pending',
@@ -264,13 +285,14 @@ export const useChat = (userId?: string) => {
                     read: false,
                     created_at: new Date().toISOString(),
                     delivery_status: 'pending',
+                    client_id: clientId,
                 };
 
                 setCurrentMessages((prev) => [...prev, optimisticMessage]);
 
                 // Enviar por WebSocket; el servidor luego emitirá message:sent
                 // para completar id/fecha y message:received para el receptor.
-                webSocket.sendMessage(conversationId, senderId, recipientId, contentTrimmed);
+                webSocket.sendMessage(conversationId, senderId, recipientId, contentTrimmed, clientId);
 
                 return optimisticMessage;
             } else {
