@@ -20,14 +20,38 @@ export const useChat = (userId?: string) => {
 
     const webSocket = useWebSocket(userId || null);
 
-    // Escuchar mensajes recibidos
+    // Escuchar mensajes recibidos y actualizar conversación + mensajes actuales
     useEffect(() => {
         const unsubscribe = webSocket.onMessageReceived((message) => {
             console.log('[Chat] Message received via WS:', message);
+
+            // Añadir al hilo actual
             setCurrentMessages((prev) => [...prev, message]);
+
+            // Actualizar la lista de conversaciones (último mensaje y contadores)
+            setConversations((prev) => {
+                return prev.map((conv) => {
+                    if (conv.id !== message.conversation_id) return conv;
+
+                    const unreadBase = conv.unread_count ?? 0;
+                    const isIncoming = userId && message.sender_id !== userId;
+
+                    return {
+                        ...conv,
+                        last_message: {
+                            id: message.id,
+                            content: message.content,
+                            created_at: message.created_at,
+                            sender_id: message.sender_id,
+                            read: message.read,
+                        } as any,
+                        unread_count: isIncoming ? unreadBase + 1 : unreadBase,
+                    };
+                });
+            });
         });
         return unsubscribe;
-    }, [webSocket]);
+    }, [webSocket, userId]);
 
     // Escuchar confirmación de mensajes enviados
     useEffect(() => {

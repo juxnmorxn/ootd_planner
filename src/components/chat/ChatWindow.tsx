@@ -32,18 +32,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Fix para iOS/Safari - ajustar 100vh cuando se abre el teclado
-    useEffect(() => {
-        const fixVH = () => {
-            const vh = window.innerHeight * 0.01;
-            document.documentElement.style.setProperty('--vh', `${vh}px`);
-        };
-        
-        fixVH();
-        window.addEventListener('resize', fixVH);
-        return () => window.removeEventListener('resize', fixVH);
-    }, []);
-
     // Auto-scroll al fondo cuando se cargan mensajes
     useEffect(() => {
         const timer = setTimeout(() => {
