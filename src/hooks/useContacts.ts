@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Contact, User } from '../types';
+import { useStore } from '../lib/store';
 
 const API_URL = (() => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -13,6 +14,7 @@ export const useContacts = () => {
     const [pendingRequests, setPendingRequests] = useState<Contact[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const setPendingRequestsCount = useStore((state) => state.setPendingRequestsCount);
 
     // Buscar usuarios por username (búsqueda parcial, devuelve lista)
     const searchUser = async (username: string, currentUserId?: string): Promise<User[]> => {
@@ -85,6 +87,8 @@ export const useContacts = () => {
             if (!response.ok) throw new Error('Failed to fetch pending requests');
             const data = await response.json();
             setPendingRequests(data);
+            // Actualizar contador global para badge "Amigos"
+            setPendingRequestsCount(Array.isArray(data) ? data.length : 0);
         } catch (err: any) {
             setError(err.message);
         } finally {

@@ -239,6 +239,28 @@
 
 /* Chats list */
 .chats-list,
+
+/* ═══════════════════════════════ GRUPOS ═══════════════════════════════ */
+.groups-tab {
+    padding: 1rem 1.5rem;
+}
+
+.groups-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+
+.create-group-btn {
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    border: 1px dashed var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--accent-color);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: default;
+}
 .requests-list {
     display: flex;
     flex-direction: column;

@@ -10,6 +10,7 @@ import { Closet } from './pages/Closet';
 import { Profile } from './pages/Profile';
 import { BottomNav } from './components/layout/BottomNav';
 import { ChatInbox } from './pages/ChatInbox';
+import { Contacts } from './pages/Contacts';
 import { Fondos } from './pages/Fondos';
 
 import { AdminUsers } from './pages/AdminUsers';
@@ -44,6 +45,7 @@ function App() {
   const view = useStore((state) => state.currentView);
   const setView = useStore((state) => state.setCurrentView);
   const isViewingIndividualChat = useStore((state) => state.isViewingIndividualChat);
+  const pendingRequestsCount = useStore((state) => state.pendingRequestsCount);
 
   // ✅ Inicializar el tema al cargar la app
   useTheme();
@@ -76,6 +78,7 @@ function App() {
     'profile',
     'admin-users',
     'chat-inbox',
+    'contacts',
     'fondos',
   ];
   const safeView = validViews.includes(view) ? view : 'auth';
@@ -218,13 +221,17 @@ function App() {
     setSelectedOutfitId(null);
   };
 
-  const handleNavigate = (item: 'calendar' | 'closet' | 'chat-inbox' | 'settings') => {
+  const handleNavigate = (item: 'calendar' | 'closet' | 'chat-inbox' | 'contacts' | 'settings') => {
     if (item === 'settings') {
       setView('profile');
       return;
     }
     if (item === 'chat-inbox') {
       setView('chat-inbox');
+      return;
+    }
+    if (item === 'contacts') {
+      setView('contacts');
       return;
     }
     setView(item);
@@ -304,7 +311,7 @@ function App() {
 
   // Show bottom nav for main views
   const showBottomNav =
-    !isViewingIndividualChat && (safeView === 'calendar' || safeView === 'closet' || safeView === 'chat-inbox');
+    !isViewingIndividualChat && (safeView === 'calendar' || safeView === 'closet' || safeView === 'chat-inbox' || safeView === 'contacts');
   const navActive = (
     safeView === 'calendar'
       ? 'calendar'
@@ -312,8 +319,10 @@ function App() {
       ? 'closet'
       : safeView === 'chat-inbox'
       ? 'chat-inbox'
+      : safeView === 'contacts'
+      ? 'contacts'
       : 'calendar'
-  ) as 'calendar' | 'closet' | 'chat-inbox';
+  ) as 'calendar' | 'closet' | 'chat-inbox' | 'contacts';
 
   return (
     <div
@@ -346,6 +355,10 @@ function App() {
           <ChatInbox userId={currentUser.id} />
         )}
 
+        {safeView === 'contacts' && (
+          <Contacts userId={currentUser.id} />
+        )}
+
         {safeView === 'fondos' && (
           <Fondos />
         )}
@@ -355,6 +368,7 @@ function App() {
           active={navActive}
           onNavigate={handleNavigate}
           currentUser={currentUser}
+          pendingRequestsCount={pendingRequestsCount}
         />
       )}
     </div>

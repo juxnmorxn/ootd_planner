@@ -17,6 +17,7 @@ interface AppState {
         | 'profile'
         | 'admin-users'
         | 'chat-inbox'
+        | 'contacts'
         | 'fondos';
     setCurrentView: (
         view:
@@ -27,6 +28,7 @@ interface AppState {
             | 'profile'
             | 'admin-users'
             | 'chat-inbox'
+            | 'contacts'
             | 'fondos'
     ) => void;
 
@@ -55,6 +57,10 @@ interface AppState {
     // Chat state: target user to open chat with (set from Contacts)
     currentChatTargetUserId: string | null;
     setCurrentChatTargetUserId: (userId: string | null) => void;
+
+    // Global badge: pending friend requests count
+    pendingRequestsCount: number;
+    setPendingRequestsCount: (count: number) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -145,6 +151,10 @@ export const useStore = create<AppState>()(
             // Chat state
             currentChatTargetUserId: null,
             setCurrentChatTargetUserId: (userId) => set({ currentChatTargetUserId: userId }),
+
+            // Pending friend requests badge
+            pendingRequestsCount: 0,
+            setPendingRequestsCount: (count: number) => set({ pendingRequestsCount: count }),
         }),
         {
             name: 'outfit-planner-storage', // localStorage key

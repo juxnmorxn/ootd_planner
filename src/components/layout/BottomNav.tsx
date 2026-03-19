@@ -1,20 +1,22 @@
-import { Home, ShirtIcon, MessageCircle } from 'lucide-react';
+import { Home, ShirtIcon, MessageCircle, Users } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { User } from '../../types';
 
-type NavItem = 'calendar' | 'closet' | 'chat-inbox' | 'settings';
+type NavItem = 'calendar' | 'closet' | 'chat-inbox' | 'contacts' | 'settings';
 
 interface BottomNavProps {
     active: NavItem;
     onNavigate: (item: NavItem) => void;
     currentUser?: User | null;
+    pendingRequestsCount?: number;
 }
 
-export function BottomNav({ active, onNavigate, currentUser }: BottomNavProps) {
+export function BottomNav({ active, onNavigate, currentUser, pendingRequestsCount }: BottomNavProps) {
     const items: Array<{ key: NavItem; icon?: typeof Home; label: string; isProfile?: boolean }> = [
         { key: 'calendar', icon: Home, label: 'Calendario' },
         { key: 'closet', icon: ShirtIcon, label: 'Clóset' },
         { key: 'chat-inbox', icon: MessageCircle, label: 'Mensajes' },
+        { key: 'contacts', icon: Users, label: 'Amigos' },
         { key: 'settings', label: 'Perfil', isProfile: true },
     ];
 
@@ -77,7 +79,22 @@ export function BottomNav({ active, onNavigate, currentUser }: BottomNavProps) {
                             ) : (
                                 // Mostrar icono normal
                                 <>
-                                    {item.icon && <item.icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />}
+                                    {item.icon && (
+                                        <div className="relative">
+                                            <item.icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
+                                            {item.key === 'contacts' && pendingRequestsCount && pendingRequestsCount > 0 && (
+                                                <span
+                                                    className="absolute -top-1 -right-2 rounded-full text-[10px] min-w-[16px] h-4 px-1 flex items-center justify-center"
+                                                    style={{
+                                                        backgroundColor: 'var(--accent-color)',
+                                                        color: 'var(--bg-primary)',
+                                                    }}
+                                                >
+                                                    {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                 </>
                             )}
                             <span className="text-xs font-medium">{item.label}</span>

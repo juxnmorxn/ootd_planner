@@ -12,7 +12,7 @@ interface ContactsPageProps {
 
 export const Contacts: React.FC<ContactsPageProps> = ({ userId }) => {
     const [refreshKey, setRefreshKey] = useState(0);
-    const { contacts, getContacts, ensureConversation } = useContacts();
+    const { contacts, getContacts, ensureConversation, getPendingRequests } = useContacts();
     const setView = useStore((state) => state.setCurrentView);
     const setCurrentChatTargetUserId = useStore((state) => state.setCurrentChatTargetUserId);
 
@@ -22,6 +22,7 @@ export const Contacts: React.FC<ContactsPageProps> = ({ userId }) => {
 
     useEffect(() => {
         getContacts(userId);
+        getPendingRequests(userId); // Mantener badge en sync al visitar Amigos
     }, [userId, refreshKey]);
 
     const handleRequestSent = () => {
