@@ -25,8 +25,14 @@ export const useChat = (userId?: string) => {
         const unsubscribe = webSocket.onMessageReceived((message) => {
             console.log('[Chat] Message received via WS:', message);
 
-            // Añadir al hilo actual
-            setCurrentMessages((prev) => [...prev, message]);
+                // Si el mensaje es nuestro (saliente), no duplicar: el bubble ya
+                // existe como "pending" y se actualizará con message:sent.
+                setCurrentMessages((prev) => {
+                    if (userId && message.sender_id === userId) {
+                        return prev;
+                    }
+                    return [...prev, message];
+                });
 
             // Actualizar la lista de conversaciones (último mensaje y contadores)
             setConversations((prev) => {
@@ -177,15 +183,24 @@ export const useChat = (userId?: string) => {
 
             // Usar WebSocket si está conectado
             if (webSocket.socket?.connected) {
-                // Enviar por WebSocket
-                webSocket.sendMessage(conversationId, senderId, recipientId, contentTrimmed);
-                
-                // Retornar optimista - será confirmado por message:sent
-                return { 
-                    id: 'pending', 
+                // Mensaje optimista local (tipo WhatsApp)
+                const optimisticMessage: MessageWithSender = {
+                    id: 'pending',
+                    conversation_id: conversationId,
+                    sender_id: senderId,
+                    content: contentTrimmed,
+                    message_type: 'text',
+                    read: false,
                     created_at: new Date().toISOString(),
-                    status: 'sending'
                 };
+
+                setCurrentMessages((prev) => [...prev, optimisticMessage]);
+
+                // Enviar por WebSocket; el servidor luego emitirá message:sent
+                // para completar id/fecha y message:received para el receptor.
+                webSocket.sendMessage(conversationId, senderId, recipientId, contentTrimmed);
+
+                return optimisticMessage;
             } else {
                 // Fallback a HTTP con reintentos
                 console.warn('[Chat] WebSocket not connected, using HTTP fallback');
