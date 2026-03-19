@@ -25,18 +25,18 @@ export const useChat = (userId?: string) => {
         const unsubscribe = webSocket.onMessageReceived((message) => {
             console.log('[Chat] Message received via WS:', message);
 
-                // Si el mensaje es nuestro (saliente), no duplicar: el bubble ya
-                // existe como "pending" y se actualizará con message:sent.
-                setCurrentMessages((prev) => {
-                    if (userId && message.sender_id === userId) {
-                        return prev;
-                    }
-                    return [...prev, message];
-                });
+            // Si el mensaje es nuestro (saliente), no duplicar: el bubble ya
+            // existe como "pending" y se actualizará con message:sent.
+            setCurrentMessages((prev) => {
+                if (userId && message.sender_id === userId) {
+                    return prev;
+                }
+                return [...prev, message];
+            });
 
             // Actualizar la lista de conversaciones (último mensaje y contadores)
             setConversations((prev) => {
-                return prev.map((conv) => {
+                const updated = prev.map((conv) => {
                     if (conv.id !== message.conversation_id) return conv;
 
                     const unreadBase = conv.unread_count ?? 0;
@@ -52,7 +52,16 @@ export const useChat = (userId?: string) => {
                             read: message.read,
                         } as any,
                         unread_count: isIncoming ? unreadBase + 1 : unreadBase,
+                        // Mantener orden local coherente con la última actividad
+                        updated_at: message.created_at,
                     };
+                });
+
+                // Reordenar conversaciones por última actividad (updated_at desc)
+                return [...updated].sort((a, b) => {
+                    const aTime = a.updated_at || a.last_message?.created_at || '';
+                    const bTime = b.updated_at || b.last_message?.created_at || '';
+                    return bTime.localeCompare(aTime);
                 });
             });
         });
@@ -257,6 +266,15 @@ export const useChat = (userId?: string) => {
             await fetch(`${API_URL}/conversations/${conversationId}/read`, {
                 method: 'PUT',
             });
+
+            // Actualizar localmente los contadores de no leídos
+            setConversations((prev) =>
+                prev.map((conv) =>
+                    conv.id === conversationId
+                        ? { ...conv, unread_count: 0 }
+                        : conv
+                )
+            );
         } catch (err: any) {
             console.error('Failed to mark conversation as read:', err);
         }

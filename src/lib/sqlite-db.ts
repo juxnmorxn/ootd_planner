@@ -450,6 +450,23 @@ class SQLiteDatabase {
         stmt.run(userId, contactId);
     }
 
+    // Solicitudes pendientes enviadas por un usuario (donde él es quien solicita)
+    getSentPendingRequests(userId: string): Contact[] {
+        const stmt = this.db.prepare(
+            'SELECT * FROM contacts WHERE user_id = ? AND status = ? ORDER BY created_at DESC'
+        );
+        const rows = stmt.all(userId, 'pendiente') as any[];
+
+        return rows.map((row) => ({
+            id: row.id,
+            user_id: row.user_id,
+            contact_id: row.contact_id,
+            status: row.status,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }));
+    }
+
     // ============ CONVERSATIONS ============
 
     createConversation(conversation: Omit<Conversation, 'id' | 'created_at' | 'updated_at'> & { id: string }): Conversation {
@@ -540,6 +557,12 @@ class SQLiteDatabase {
             0,
             now
         );
+
+        // Actualizar el timestamp de la conversación para que aparezca arriba en la lista
+        const updateConvStmt = this.db.prepare(
+            'UPDATE conversations SET updated_at = ? WHERE id = ?'
+        );
+        updateConvStmt.run(now, message.conversation_id);
 
         return {
             id: message.id,

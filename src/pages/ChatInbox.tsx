@@ -35,13 +35,22 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     const [searchUsers, setSearchUsers] = useState<User[]>([]);
     const [friendRequests, setFriendRequests] = useState<any[]>([]);
     const [requestsLoading, setRequestsLoading] = useState(false);
+    const [sentRequests, setSentRequests] = useState<any[]>([]);
+    const [sentRequestsLoading, setSentRequestsLoading] = useState(false);
 
     // Control bottom nav visibility when opening/closing individual chat
     useEffect(() => {
         setIsViewingIndividualChat(showChatView && isMobile);
     }, [showChatView, isMobile, setIsViewingIndividualChat]);
 
-    // Cargar solicitudes pendientes
+    // Asegurar que al desmontar la bandeja de entrada se restaure la BottomNav
+    useEffect(() => {
+        return () => {
+            setIsViewingIndividualChat(false);
+        };
+    }, [setIsViewingIndividualChat]);
+
+    // Cargar solicitudes pendientes (recibidas)
     const loadPendingRequests = useCallback(async () => {
         setRequestsLoading(true);
         try {
@@ -57,16 +66,33 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
         }
     }, [userId]);
 
+    // Cargar solicitudes pendientes enviadas
+    const loadSentRequests = useCallback(async () => {
+        setSentRequestsLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/contacts/sent-pending/${userId}`);
+            if (response.ok) {
+                const requests = await response.json();
+                setSentRequests(requests || []);
+            }
+        } catch (err) {
+            console.error('Error loading sent requests:', err);
+        } finally {
+            setSentRequestsLoading(false);
+        }
+    }, [userId]);
+
     // Cargar chats y solicitudes pendientes
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             await getConversations(userId);
             await loadPendingRequests();
+            await loadSentRequests();
             setLoading(false);
         };
         load();
-    }, [userId, getConversations, loadPendingRequests]);
+    }, [userId, getConversations, loadPendingRequests, loadSentRequests]);
 
     // Escuchar cambios de contactos en tiempo real (solicitudes nuevas y aceptaciones)
     useEffect(() => {
@@ -78,6 +104,7 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
         const unsubscribeAccepted = onContactAccepted?.(() => {
             // Alguna solicitud fue aceptada: recargar solicitudes y conversaciones
             loadPendingRequests();
+            loadSentRequests();
             getConversations(userId);
         });
 
@@ -85,7 +112,7 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
             if (unsubscribeRequest) unsubscribeRequest();
             if (unsubscribeAccepted) unsubscribeAccepted();
         };
-    }, [onContactRequest, onContactAccepted, loadPendingRequests, getConversations, userId]);
+    }, [onContactRequest, onContactAccepted, loadPendingRequests, loadSentRequests, getConversations, userId]);
 
     // Buscar usuarios cuando escribe en la barra
     useEffect(() => {
@@ -157,8 +184,7 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                 return;
             }
             await sendRequest(userId, contactId);
-            // Remover usuario de la lista de búsqueda
-            setSearchUsers(prev => prev.filter(u => u.id !== contactId));
+            await loadSentRequests();
         } catch (err: any) {
             console.error('Error sending friend request:', err);
             // Mostrar error específico
@@ -359,33 +385,51 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                     {searchResults.users.length > 0 && (
                                         <div className="search-section">
                                             <h3 className="section-title">Usuarios</h3>
-                                            {searchResults.users.map((user) => (
-                                                <div
-                                                    key={user.id}
-                                                    className="chat-item user-item"
-                                                    onClick={() => handleOpenChatWithUser(user)}
-                                                >
-                                                    <div className="chat-avatar">
-                                                        {user.profile_pic ? (
-                                                            <img src={user.profile_pic} alt="" />
-                                                        ) : (
-                                                            <div className="avatar-placeholder">
-                                                                {(user.username || '?').charAt(0).toUpperCase()}
-                                                            </div>
+                                            {searchResults.users.map((user) => {
+                                                const sentReq = sentRequests.find((r) => r.contact_user?.id === user.id);
+                                                const pendingReceived = friendRequests.find((r) => r.contact_user?.id === user.id);
+                                                const alreadyRequested = !!sentReq;
+
+                                                let statusText = 'Desconectado';
+                                                if (alreadyRequested) {
+                                                    statusText = 'Solicitud enviada';
+                                                } else if (pendingReceived) {
+                                                    statusText = 'Te envió una solicitud';
+                                                }
+
+                                                return (
+                                                    <div
+                                                        key={user.id}
+                                                        className="chat-item user-item"
+                                                        onClick={() => handleOpenChatWithUser(user)}
+                                                    >
+                                                        <div className="chat-avatar">
+                                                            {user.profile_pic ? (
+                                                                <img src={user.profile_pic} alt="" />
+                                                            ) : (
+                                                                <div className="avatar-placeholder">
+                                                                    {(user.username || '?').charAt(0).toUpperCase()}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="chat-content">
+                                                            <p className="chat-name">{user.username}</p>
+                                                            <p className="chat-message">{statusText}</p>
+                                                        </div>
+                                                        {!alreadyRequested && !pendingReceived && (
+                                                            <button
+                                                                className="btn-follow"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleAddFriend(user.id);
+                                                                }}
+                                                            >
+                                                                Seguir
+                                                            </button>
                                                         )}
                                                     </div>
-                                                    <div className="chat-content">
-                                                        <p className="chat-name">{user.username}</p>
-                                                        <p className="chat-message">Desconectado</p>
-                                                    </div>
-                                                    <button 
-                                                        className="btn-follow"
-                                                        onClick={() => handleAddFriend(user.id)}
-                                                    >
-                                                        Seguir
-                                                    </button>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </>
@@ -439,14 +483,19 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                             )}
                         </>
                     ) : (
-                        // TAB: SOLICITUDES
-                        <>
-                            {friendRequests.length === 0 ? (
+                        // TAB: SOLICITUDES (recibidas y enviadas)
+                        <div className="requests-tab">
+                            <h3 className="section-title">Solicitudes recibidas</h3>
+                            {requestsLoading && (
+                                <p className="loading">Cargando solicitudes...</p>
+                            )}
+                            {!requestsLoading && friendRequests.length === 0 && (
                                 <div className="empty-state">
-                                    <Users size={48} />
-                                    <p>No hay solicitudes</p>
+                                    <Users size={32} />
+                                    <p>No tienes solicitudes pendientes</p>
                                 </div>
-                            ) : (
+                            )}
+                            {!requestsLoading && friendRequests.length > 0 && (
                                 <div className="requests-list">
                                     {friendRequests.map((req) => (
                                         <div key={req.id} className="request-item">
@@ -461,28 +510,80 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                             </div>
                                             <div className="request-content">
                                                 <p className="request-name">{req.contact_user?.username}</p>
+                                                <p className="chat-message">Quiere agregarte a sus contactos</p>
                                             </div>
                                             <div className="request-actions">
-                                                <button 
+                                                <button
                                                     className="btn-accept"
                                                     onClick={() => handleFriendRequest(req.user_id, true)}
                                                     disabled={requestsLoading}
                                                 >
-                                                    ✓
+                                                    Aceptar
                                                 </button>
-                                                <button 
+                                                <button
                                                     className="btn-reject"
                                                     onClick={() => handleFriendRequest(req.user_id, false)}
                                                     disabled={requestsLoading}
                                                 >
-                                                    ✕
+                                                    Rechazar
                                                 </button>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                        </>
+
+                            <h3 className="section-title" style={{ marginTop: '1.5rem' }}>Solicitudes enviadas</h3>
+                            {sentRequestsLoading && (
+                                <p className="loading">Cargando solicitudes enviadas...</p>
+                            )}
+                            {!sentRequestsLoading && sentRequests.length === 0 && (
+                                <p className="empty-substate">No has enviado solicitudes recientes</p>
+                            )}
+                            {!sentRequestsLoading && sentRequests.length > 0 && (
+                                <div className="requests-list">
+                                    {sentRequests.map((req) => (
+                                        <div key={req.id} className="request-item">
+                                            <div className="chat-avatar">
+                                                {req.contact_user?.profile_pic ? (
+                                                    <img src={req.contact_user.profile_pic} alt="" />
+                                                ) : (
+                                                    <div className="avatar-placeholder">
+                                                        {(req.contact_user?.username || '?').charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="request-content">
+                                                <p className="request-name">{req.contact_user?.username}</p>
+                                                <p className="chat-message">Solicitud enviada</p>
+                                            </div>
+                                            <div className="request-actions">
+                                                <button
+                                                    className="btn-reject"
+                                                    onClick={async () => {
+                                                        try {
+                                                            const response = await fetch(`${API_URL}/contacts/cancel`, {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ user_id: userId, contact_id: req.contact_id }),
+                                                            });
+                                                            if (response.ok) {
+                                                                await loadSentRequests();
+                                                            }
+                                                        } catch (err) {
+                                                            console.error('Error cancelling request:', err);
+                                                        }
+                                                    }}
+                                                    disabled={sentRequestsLoading}
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>

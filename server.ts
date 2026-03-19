@@ -350,6 +350,28 @@ app.get('/api/contacts/pending/:userId', (req, res) => {
     }
 });
 
+// Obtener solicitudes pendientes enviadas por un usuario (salientes)
+app.get('/api/contacts/sent-pending/:userId', (req, res) => {
+    try {
+        const contacts = db.getSentPendingRequests(req.params.userId);
+
+        // Enriquecer con datos del usuario al que se envió la solicitud
+        const enriched = contacts.map((contact) => {
+            const toUser = db.getUser(contact.contact_id);
+            return {
+                ...contact,
+                contact_user: toUser
+                    ? { id: toUser.id, username: toUser.username, profile_pic: toUser.profile_pic }
+                    : null,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Obtener contactos aceptados de un usuario
 app.get('/api/contacts/accepted/:userId', (req, res) => {
     try {
@@ -429,6 +451,27 @@ app.post('/api/contacts/reject', (req, res) => {
         // Actualizar estado
         db.updateContactStatus(contact_id, user_id, 'rechazado');
 
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Cancelar una solicitud de amistad enviada (pendiente)
+app.post('/api/contacts/cancel', (req, res) => {
+    try {
+        const { user_id, contact_id } = req.body;
+
+        if (!user_id || !contact_id) {
+            return res.status(400).json({ error: 'user_id y contact_id requeridos' });
+        }
+
+        const existing = db.getContact(user_id, contact_id);
+        if (existing?.status !== 'pendiente') {
+            return res.status(404).json({ error: 'Solicitud pendiente no encontrada' });
+        }
+
+        db.deleteContact(user_id, contact_id);
         res.json({ success: true });
     } catch (error: any) {
         res.status(500).json({ error: error.message });

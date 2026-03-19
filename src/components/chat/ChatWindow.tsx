@@ -121,6 +121,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
         try {
             await sendMessage(conversationId, userId, recipientId, messageContent.trim());
             setMessageContent('');
+
+            // Mantener el foco en el input para que el teclado no se cierre
+            if (inputRef.current) {
+                inputRef.current.focus();
+            }
         } catch (error) {
             console.error('Error sending message:', error);
         } finally {
