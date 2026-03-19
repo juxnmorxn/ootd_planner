@@ -533,6 +533,353 @@ app.delete('/api/contacts/:user_id/:contact_id', (req, res) => {
     }
 });
 
+// ============ GROUPS ============
+
+function isActiveGroupMemberLocal(groupId: string, userId: string) {
+    const member = db.getGroupMember(groupId, userId);
+    if (!member) return null;
+    if (member.removed_at) return null;
+    return member;
+}
+
+function isGroupAdminLocal(groupId: string, userId: string) {
+    const member = db.getGroupMember(groupId, userId);
+    if (!member) return null;
+    if (member.removed_at) return null;
+    if (member.role !== 'admin') return null;
+    return member;
+}
+
+// Crear grupo
+app.post('/api/groups', (req, res) => {
+    try {
+        const { name, description, avatar_url, created_by, member_ids } = req.body || {};
+
+        if (!name || !created_by) {
+            return res.status(400).json({ error: 'name y created_by requeridos' });
+        }
+
+        const creator = db.getUser(created_by);
+        if (!creator) {
+            return res.status(404).json({ error: 'Usuario creador no encontrado' });
+        }
+
+        const groupId = uuidv4();
+        const group = db.createGroup({
+            id: groupId,
+            name,
+            description: description || null,
+            avatar_url: avatar_url || null,
+            created_by,
+        });
+
+        const allMemberIds = new Set<string>([created_by, ...(Array.isArray(member_ids) ? member_ids : [])]);
+
+        // Insertar miembros (creador como admin, resto como member) usando helpers del wrapper
+        db.addOrUpdateGroupMembers(groupId, created_by, Array.from(allMemberIds).filter((id) => id !== created_by));
+
+        // Asegurar que el creador exista como admin (aunque addOrUpdate lo pondrá como member por defecto)
+        const creatorMember = db.getGroupMember(groupId, created_by);
+        if (!creatorMember) {
+            db.addOrUpdateGroupMembers(groupId, created_by, [created_by]);
+            db.setGroupMemberRole(groupId, created_by, 'admin');
+        } else if (creatorMember.role !== 'admin' || creatorMember.removed_at) {
+            db.setGroupMemberRole(groupId, created_by, 'admin');
+        }
+
+        res.json(group);
+    } catch (error: any) {
+        console.error('[API] Groups create error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Listar grupos donde el usuario es miembro
+app.get('/api/groups/by-user/:userId', (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const groups = db.getGroupsByUser(userId);
+
+        const enriched = groups.map((g) => {
+            const messages = db.getGroupMessages(g.id);
+            let unreadCount = 0;
+            for (const m of messages) {
+                let readBy: string[] = [];
+                try {
+                    readBy = m.read_by_json ? JSON.parse(m.read_by_json) : [];
+                    if (!Array.isArray(readBy)) readBy = [];
+                } catch {
+                    readBy = [];
+                }
+                if (!readBy.includes(userId)) {
+                    unreadCount += 1;
+                }
+            }
+
+            const members = db.getGroupMembers(g.id, true);
+
+            return {
+                ...g,
+                last_message: messages[messages.length - 1] || null,
+                unread_count: unreadCount,
+                members_count: members.length,
+            } as any;
+        });
+
+        res.json(enriched);
+    } catch (error: any) {
+        console.error('[API] Groups by-user error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Detalle de grupo + miembros
+app.get('/api/groups/:groupId', (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const group = db.getGroup(groupId);
+        if (!group) {
+            return res.status(404).json({ error: 'Grupo no encontrado' });
+        }
+
+        const memberRows = db.getGroupMembers(groupId, true);
+        const members = memberRows.map((m) => {
+            const user = db.getUser(m.user_id);
+            return {
+                ...m,
+                user: user
+                    ? { id: user.id, username: user.username, profile_pic: user.profile_pic }
+                    : null,
+            };
+        });
+
+        res.json({
+            ...group,
+            members,
+        });
+    } catch (error: any) {
+        console.error('[API] Group detail error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Actualizar datos básicos del grupo (nombre, descripción, avatar) - solo admin
+app.put('/api/groups/:groupId', (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const { user_id, name, description, avatar_url } = req.body || {};
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id requerido' });
+        }
+
+        const admin = isGroupAdminLocal(groupId, user_id);
+        if (!admin) {
+            return res.status(403).json({ error: 'Solo un administrador puede editar el grupo' });
+        }
+
+        const group = db.getGroup(groupId);
+        if (!group) {
+            return res.status(404).json({ error: 'Grupo no encontrado' });
+        }
+
+        db.updateGroup(groupId, {
+            name: name || null,
+            description: description || null,
+            avatar_url: avatar_url || null,
+        });
+
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('[API] Group update error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Añadir miembros a un grupo (solo admin)
+app.post('/api/groups/:groupId/members', (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const { user_id, member_ids } = req.body || {};
+
+        if (!user_id || !Array.isArray(member_ids) || !member_ids.length) {
+            return res.status(400).json({ error: 'user_id y member_ids requeridos' });
+        }
+
+        const admin = isGroupAdminLocal(groupId, user_id);
+        if (!admin) {
+            return res.status(403).json({ error: 'Solo un administrador puede añadir miembros' });
+        }
+
+        db.addOrUpdateGroupMembers(groupId, user_id, member_ids);
+
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('[API] Group add members error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Eliminar miembro de un grupo (admin o el propio usuario para salir)
+app.delete('/api/groups/:groupId/members/:memberId', (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const memberId = req.params.memberId;
+        const { user_id } = req.body || {};
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id requerido' });
+        }
+
+        const isSelf = user_id === memberId;
+        const admin = isGroupAdminLocal(groupId, user_id);
+        if (!isSelf && !admin) {
+            return res.status(403).json({ error: 'Solo un admin puede eliminar a otros miembros' });
+        }
+
+        db.removeGroupMember(groupId, memberId);
+
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('[API] Group remove member error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Asignar admin a miembro
+app.post('/api/groups/:groupId/admins/:memberId', (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const memberId = req.params.memberId;
+        const { user_id } = req.body || {};
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id requerido' });
+        }
+
+        const admin = isGroupAdminLocal(groupId, user_id);
+        if (!admin) {
+            return res.status(403).json({ error: 'Solo un admin puede promover a otros administradores' });
+        }
+
+        const member = isActiveGroupMemberLocal(groupId, memberId);
+        if (!member) {
+            return res.status(404).json({ error: 'Miembro no encontrado en el grupo' });
+        }
+
+        db.setGroupMemberRole(groupId, memberId, 'admin');
+
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('[API] Group add admin error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Quitar rol de admin a miembro
+app.delete('/api/groups/:groupId/admins/:memberId', (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const memberId = req.params.memberId;
+        const { user_id } = req.body || {};
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id requerido' });
+        }
+
+        const admin = isGroupAdminLocal(groupId, user_id);
+        if (!admin) {
+            return res.status(403).json({ error: 'Solo un admin puede modificar otros administradores' });
+        }
+
+        db.setGroupMemberRole(groupId, memberId, 'member');
+
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('[API] Group remove admin error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener mensajes de grupo
+app.get('/api/groups/:groupId/messages', (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const messages = db.getGroupMessages(groupId);
+
+        const enriched = messages.map((msg) => {
+            const sender = db.getUser(msg.sender_id);
+            return {
+                ...msg,
+                sender: sender
+                    ? { id: sender.id, username: sender.username, profile_pic: sender.profile_pic }
+                    : null,
+            };
+        });
+
+        res.json(enriched);
+    } catch (error: any) {
+        console.error('[API] Group messages list error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Enviar mensaje a grupo
+app.post('/api/groups/:groupId/messages', (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const { sender_id, content, message_type } = req.body || {};
+
+        if (!sender_id || !content?.trim()) {
+            return res.status(400).json({ error: 'sender_id y content requeridos' });
+        }
+
+        const member = isActiveGroupMemberLocal(groupId, sender_id);
+        if (!member) {
+            return res.status(403).json({ error: 'Solo miembros activos pueden enviar mensajes al grupo' });
+        }
+
+        const messageId = uuidv4();
+        const msg = db.createGroupMessage({
+            id: messageId,
+            group_id: groupId,
+            sender_id,
+            content: content.trim(),
+            message_type: message_type || 'text',
+        });
+
+        res.json(msg);
+    } catch (error: any) {
+        console.error('[API] Group send message error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Marcar mensaje de grupo como leído por un usuario
+app.post('/api/groups/:groupId/messages/:messageId/read', (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const messageId = req.params.messageId;
+        const { user_id } = req.body || {};
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id requerido' });
+        }
+
+        const member = isActiveGroupMemberLocal(groupId, user_id);
+        if (!member) {
+            return res.status(403).json({ error: 'Solo miembros activos pueden marcar mensajes como leídos' });
+        }
+
+        db.appendGroupMessageReadBy(messageId, user_id);
+
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('[API] Group mark message read error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Asegurar conversación entre dos contactos (abrir chat)
 app.post('/api/contacts/open-chat', (req, res) => {
     try {
@@ -836,6 +1183,19 @@ io.on('connection', (socket) => {
         
         // Notificar a otros usuarios que este usuario está online
         io.emit('user:status', { userId, status: 'online' });
+
+        // Unirse a rooms de grupos donde es miembro activo (solo local, usando SQLite)
+        try {
+            const groups = db.getGroupsByUser(userId);
+            for (const g of groups) {
+                socket.join(`group:${g.id}`);
+            }
+            if (groups.length) {
+                console.log(`[WS] User ${userId} joined groups:`, groups.map((g) => g.id));
+            }
+        } catch (err) {
+            console.error('[WS] Failed to join group rooms for user', userId, err);
+        }
     });
 
     // Enviar mensaje en tiempo real
@@ -904,6 +1264,96 @@ io.on('connection', (socket) => {
             messageId: data.messageId,
             userId: data.userId,
         });
+    });
+
+    // ===== GROUP MESSAGES =====
+
+    // Enviar mensaje a grupo
+    socket.on('group:message:send', (data: {
+        groupId: string;
+        senderId: string;
+        content: string;
+        clientId?: string;
+        messageType?: string;
+    }) => {
+        const { groupId, senderId, content, clientId, messageType } = data || {} as any;
+
+        if (!groupId || !senderId || !content?.trim()) {
+            console.error('[WS] Invalid group message data:', data);
+            socket.emit('group:message:error', { error: 'Invalid group message data' });
+            return;
+        }
+
+        try {
+            const member = db.getGroupMember(groupId, senderId);
+            if (!member || member.removed_at) {
+                console.error('[WS] Sender is not active group member:', senderId, groupId);
+                socket.emit('group:message:error', { error: 'No eres miembro activo de este grupo' });
+                return;
+            }
+
+            const id = uuidv4();
+            const now = new Date().toISOString();
+
+            const msg = db.createGroupMessage({
+                id,
+                group_id: groupId,
+                sender_id: senderId,
+                content: content.trim(),
+                message_type: messageType || 'text',
+            });
+
+            // Confirmar al remitente (para casar mensaje optimista)
+            socket.emit('group:message:sent', {
+                id,
+                groupId,
+                created_at: now,
+                clientId,
+            });
+
+            // Broadcast a todos los miembros conectados del grupo
+            io.to(`group:${groupId}`).emit('group:message:received', msg);
+        } catch (error: any) {
+            console.error('[WS] Error sending group message:', error);
+            socket.emit('group:message:error', {
+                error: 'Failed to send group message',
+                details: error.message,
+            });
+        }
+    });
+
+    // Marcar mensaje de grupo como leído
+    socket.on('group:message:markAsRead', (data: {
+        groupId: string;
+        messageId: string;
+        userId: string;
+    }) => {
+        const { groupId, messageId, userId } = data || {} as any;
+
+        if (!groupId || !messageId || !userId) {
+            console.error('[WS] Invalid group markAsRead data:', data);
+            return;
+        }
+
+        try {
+            const member = db.getGroupMember(groupId, userId);
+            if (!member || member.removed_at) {
+                console.error('[WS] Non-member tried to mark group message as read:', userId, groupId);
+                return;
+            }
+
+            db.appendGroupMessageReadBy(messageId, userId);
+
+            const now = new Date().toISOString();
+            io.to(`group:${groupId}`).emit('group:message:read', {
+                groupId,
+                messageId,
+                userId,
+                readAt: now,
+            });
+        } catch (error: any) {
+            console.error('[WS] Error marking group message as read:', error);
+        }
     });
 
     // Desconexión

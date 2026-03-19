@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import type { Garment, Outfit, User, Contact, Conversation, Message } from '../types';
+import type { Garment, Outfit, User, Contact, Conversation, Message, Group, GroupMember, GroupMessage } from '../types';
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from './cloudinary';
 
 const DB_PATH = path.join(process.cwd(), 'outfit-planner.db');
@@ -147,22 +147,90 @@ class SQLiteDatabase {
       ON messages(created_at DESC)
     `);
 
-                // Tabla de suscripciones de notificaciones push
+                // ============ GROUP CHAT TABLES ============
+
+                // Tabla de grupos
                 this.db.exec(`
-            CREATE TABLE IF NOT EXISTS push_subscriptions (
+            CREATE TABLE IF NOT EXISTS groups (
                 id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                endpoint TEXT NOT NULL UNIQUE,
-                keys_json TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                avatar_url TEXT,
+                created_by TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+                // Miembros de grupo
+                this.db.exec(`
+            CREATE TABLE IF NOT EXISTS group_members (
+                id TEXT PRIMARY KEY,
+                group_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'member',
+                added_by TEXT NOT NULL,
+                added_at TEXT NOT NULL,
+                removed_at TEXT,
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE CASCADE,
+                UNIQUE(group_id, user_id)
             )
         `);
 
                 this.db.exec(`
-            CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user 
-            ON push_subscriptions(user_id)
+            CREATE INDEX IF NOT EXISTS idx_group_members_group 
+            ON group_members(group_id)
         `);
+
+                this.db.exec(`
+            CREATE INDEX IF NOT EXISTS idx_group_members_user 
+            ON group_members(user_id)
+        `);
+
+                // Mensajes de grupo
+                this.db.exec(`
+            CREATE TABLE IF NOT EXISTS group_messages (
+                id TEXT PRIMARY KEY,
+                group_id TEXT NOT NULL,
+                sender_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                message_type TEXT DEFAULT 'text',
+                read_by_json TEXT DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+                FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        `);
+
+                this.db.exec(`
+            CREATE INDEX IF NOT EXISTS idx_group_messages_group 
+            ON group_messages(group_id)
+        `);
+
+                this.db.exec(`
+                    CREATE INDEX IF NOT EXISTS idx_group_messages_created 
+                    ON group_messages(created_at DESC)
+                `);
+
+                // Tabla de suscripciones de notificaciones push
+                this.db.exec(`
+                    CREATE TABLE IF NOT EXISTS push_subscriptions (
+                        id TEXT PRIMARY KEY,
+                        user_id TEXT NOT NULL,
+                        endpoint TEXT NOT NULL UNIQUE,
+                        keys_json TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                `);
+
+                this.db.exec(`
+                    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user 
+                    ON push_subscriptions(user_id)
+                `);
     }
 
     // ============ USERS ============
@@ -637,6 +705,246 @@ class SQLiteDatabase {
     deleteMessage(id: string): void {
         const stmt = this.db.prepare('DELETE FROM messages WHERE id = ?');
         stmt.run(id);
+    }
+
+    // ============ GROUPS ============
+
+    createGroup(group: { id: string; name: string; description?: string | null; avatar_url?: string | null; created_by: string }): Group {
+        const now = new Date().toISOString();
+        const stmt = this.db.prepare(`
+      INSERT INTO groups (id, name, description, avatar_url, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+        stmt.run(
+            group.id,
+            group.name,
+            group.description || null,
+            group.avatar_url || null,
+            group.created_by,
+            now,
+            now
+        );
+
+        return {
+            id: group.id,
+            name: group.name,
+            description: group.description || null,
+            avatar_url: group.avatar_url || null,
+            created_by: group.created_by,
+            created_at: now,
+            updated_at: now,
+        };
+    }
+
+    getGroup(id: string): Group | null {
+        const stmt = this.db.prepare('SELECT * FROM groups WHERE id = ?');
+        const row = stmt.get(id) as any;
+
+        if (!row) return null;
+
+        return {
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            avatar_url: row.avatar_url,
+            created_by: row.created_by,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        };
+    }
+
+    updateGroup(id: string, fields: { name?: string | null; description?: string | null; avatar_url?: string | null }): void {
+        const current = this.getGroup(id);
+        if (!current) return;
+
+        const now = new Date().toISOString();
+        const stmt = this.db.prepare(`
+      UPDATE groups
+      SET name = COALESCE(?, name),
+          description = COALESCE(?, description),
+          avatar_url = COALESCE(?, avatar_url),
+          updated_at = ?
+      WHERE id = ?
+    `);
+
+        stmt.run(
+            fields.name ?? null,
+            fields.description ?? null,
+            fields.avatar_url ?? null,
+            now,
+            id
+        );
+    }
+
+    touchGroup(id: string): void {
+        const now = new Date().toISOString();
+        const stmt = this.db.prepare('UPDATE groups SET updated_at = ? WHERE id = ?');
+        stmt.run(now, id);
+    }
+
+    getGroupsByUser(userId: string): Group[] {
+        const stmt = this.db.prepare(`
+      SELECT g.*
+      FROM groups g
+      INNER JOIN group_members gm ON g.id = gm.group_id
+      WHERE gm.user_id = ? AND gm.removed_at IS NULL
+      ORDER BY g.updated_at DESC
+    `);
+
+        const rows = stmt.all(userId) as any[];
+
+        return rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            avatar_url: row.avatar_url,
+            created_by: row.created_by,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }));
+    }
+
+    getGroupMembers(groupId: string, onlyActive: boolean = true): GroupMember[] {
+        const base = 'SELECT * FROM group_members WHERE group_id = ?';
+        const sql = onlyActive ? `${base} AND removed_at IS NULL ORDER BY added_at ASC` : `${base} ORDER BY added_at ASC`;
+        const stmt = this.db.prepare(sql);
+        const rows = stmt.all(groupId) as any[];
+
+        return rows.map((row) => ({
+            id: row.id,
+            group_id: row.group_id,
+            user_id: row.user_id,
+            role: row.role,
+            added_by: row.added_by,
+            added_at: row.added_at,
+            removed_at: row.removed_at,
+        }));
+    }
+
+    getGroupMember(groupId: string, userId: string): GroupMember | null {
+        const stmt = this.db.prepare('SELECT * FROM group_members WHERE group_id = ? AND user_id = ?');
+        const row = stmt.get(groupId, userId) as any;
+        if (!row) return null;
+
+        return {
+            id: row.id,
+            group_id: row.group_id,
+            user_id: row.user_id,
+            role: row.role,
+            added_by: row.added_by,
+            added_at: row.added_at,
+            removed_at: row.removed_at,
+        };
+    }
+
+    addOrUpdateGroupMembers(groupId: string, addedBy: string, memberIds: string[]): void {
+        const now = new Date().toISOString();
+        const selectStmt = this.db.prepare('SELECT * FROM group_members WHERE group_id = ? AND user_id = ?');
+        const insertStmt = this.db.prepare(`
+      INSERT INTO group_members (id, group_id, user_id, role, added_by, added_at, removed_at)
+      VALUES (?, ?, ?, ?, ?, ?, NULL)
+    `);
+        const updateStmt = this.db.prepare(`
+      UPDATE group_members
+      SET removed_at = NULL,
+          role = COALESCE(role, ?),
+          added_by = ?,
+          added_at = ?
+      WHERE group_id = ? AND user_id = ?
+    `);
+
+        for (const uid of memberIds) {
+            const existing = selectStmt.get(groupId, uid) as any;
+            if (!existing) {
+                insertStmt.run(
+                    `${groupId}:${uid}:${now}`,
+                    groupId,
+                    uid,
+                    'member',
+                    addedBy,
+                    now
+                );
+            } else {
+                updateStmt.run('member', addedBy, now, groupId, uid);
+            }
+        }
+    }
+
+    removeGroupMember(groupId: string, userId: string): void {
+        const now = new Date().toISOString();
+        const stmt = this.db.prepare('UPDATE group_members SET removed_at = ? WHERE group_id = ? AND user_id = ?');
+        stmt.run(now, groupId, userId);
+    }
+
+    setGroupMemberRole(groupId: string, userId: string, role: 'admin' | 'member'): void {
+        const stmt = this.db.prepare('UPDATE group_members SET role = ? WHERE group_id = ? AND user_id = ?');
+        stmt.run(role, groupId, userId);
+    }
+
+    createGroupMessage(message: { id: string; group_id: string; sender_id: string; content: string; message_type?: string }): GroupMessage {
+        const now = new Date().toISOString();
+        const stmt = this.db.prepare(`
+      INSERT INTO group_messages (id, group_id, sender_id, content, message_type, read_by_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+        stmt.run(
+            message.id,
+            message.group_id,
+            message.sender_id,
+            message.content,
+            message.message_type || 'text',
+            '[]',
+            now
+        );
+
+        this.touchGroup(message.group_id);
+
+        return {
+            id: message.id,
+            group_id: message.group_id,
+            sender_id: message.sender_id,
+            content: message.content,
+            message_type: (message.message_type || 'text') as any,
+            read_by_json: '[]',
+            created_at: now,
+        };
+    }
+
+    getGroupMessages(groupId: string): GroupMessage[] {
+        const stmt = this.db.prepare('SELECT * FROM group_messages WHERE group_id = ? ORDER BY created_at ASC');
+        const rows = stmt.all(groupId) as any[];
+
+        return rows.map((row) => ({
+            id: row.id,
+            group_id: row.group_id,
+            sender_id: row.sender_id,
+            content: row.content,
+            message_type: row.message_type,
+            read_by_json: row.read_by_json,
+            created_at: row.created_at,
+        }));
+    }
+
+    appendGroupMessageReadBy(messageId: string, userId: string): void {
+        const selectStmt = this.db.prepare('SELECT read_by_json FROM group_messages WHERE id = ?');
+        const row = selectStmt.get(messageId) as any;
+        if (!row) return;
+
+        let readBy: string[] = [];
+        try {
+            readBy = row.read_by_json ? JSON.parse(row.read_by_json) : [];
+            if (!Array.isArray(readBy)) readBy = [];
+        } catch {
+            readBy = [];
+        }
+
+        if (readBy.includes(userId)) return;
+
+        readBy.push(userId);
+        const updateStmt = this.db.prepare('UPDATE group_messages SET read_by_json = ? WHERE id = ?');
+        updateStmt.run(JSON.stringify(readBy), messageId);
     }
 
     // ============ PUSH SUBSCRIPTIONS ============

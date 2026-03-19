@@ -23,6 +23,31 @@ export interface TypingIndicator {
     conversationId: string;
 }
 
+// Group chat events
+export interface GroupSocketMessage {
+    id: string;
+    group_id: string;
+    sender_id: string;
+    content: string;
+    message_type: 'text' | 'image' | 'file';
+    read_by_json: string;
+    created_at: string;
+}
+
+export interface GroupMessageSentAck {
+    id: string;
+    groupId: string;
+    created_at: string;
+    clientId?: string;
+}
+
+export interface GroupMessageReadEvent {
+    groupId: string;
+    messageId: string;
+    userId: string;
+    readAt: string;
+}
+
 export interface ContactRequestEvent {
     id: string;
     user_id: string;
@@ -65,6 +90,12 @@ export const useWebSocket = (userId: string | null) => {
     const userTypingHandlers = useRef<Array<(t: TypingIndicator) => void>>([]);
     const contactRequestHandlers = useRef<Array<(e: ContactRequestEvent) => void>>([]);
     const contactAcceptedHandlers = useRef<Array<(e: ContactAcceptedEvent) => void>>([]);
+
+    // Group message handlers
+    const groupMessageReceivedHandlers = useRef<Array<(m: GroupSocketMessage) => void>>([]);
+    const groupMessageSentHandlers = useRef<Array<(d: GroupMessageSentAck) => void>>([]);
+    const groupMessageReadHandlers = useRef<Array<(e: GroupMessageReadEvent) => void>>([]);
+    const groupMessageErrorHandlers = useRef<Array<(e: { error: string; details?: string }) => void>>([]);
 
     // Inicializar conexión WebSocket
     useEffect(() => {
@@ -139,6 +170,23 @@ export const useWebSocket = (userId: string | null) => {
             contactAcceptedHandlers.current.forEach((cb) => cb(event));
         });
 
+        // Group chat events
+        socket.on('group:message:received', (message: GroupSocketMessage) => {
+            groupMessageReceivedHandlers.current.forEach((cb) => cb(message));
+        });
+
+        socket.on('group:message:sent', (data: GroupMessageSentAck) => {
+            groupMessageSentHandlers.current.forEach((cb) => cb(data));
+        });
+
+        socket.on('group:message:read', (event: GroupMessageReadEvent) => {
+            groupMessageReadHandlers.current.forEach((cb) => cb(event));
+        });
+
+        socket.on('group:message:error', (err: { error: string; details?: string }) => {
+            groupMessageErrorHandlers.current.forEach((cb) => cb(err));
+        });
+
         socketRef.current = socket;
 
         return () => {
@@ -198,6 +246,40 @@ export const useWebSocket = (userId: string | null) => {
         socketRef.current.emit('message:markAsRead', {
             messageId,
             conversationId,
+            userId,
+        });
+    }, []);
+
+    // Group: send message
+    const sendGroupMessage = useCallback((
+        groupId: string,
+        senderId: string,
+        content: string,
+        clientId?: string,
+        messageType?: 'text' | 'image' | 'file',
+    ) => {
+        if (!socketRef.current) return;
+
+        socketRef.current.emit('group:message:send', {
+            groupId,
+            senderId,
+            content,
+            clientId,
+            messageType,
+        });
+    }, []);
+
+    // Group: mark message as read
+    const markGroupMessageAsRead = useCallback((
+        groupId: string,
+        messageId: string,
+        userId: string,
+    ) => {
+        if (!socketRef.current) return;
+
+        socketRef.current.emit('group:message:markAsRead', {
+            groupId,
+            messageId,
             userId,
         });
     }, []);
@@ -266,11 +348,42 @@ export const useWebSocket = (userId: string | null) => {
         };
     }, []);
 
+    // Group message listeners
+    const onGroupMessageReceived = useCallback((callback: (message: GroupSocketMessage) => void) => {
+        groupMessageReceivedHandlers.current.push(callback);
+        return () => {
+            groupMessageReceivedHandlers.current = groupMessageReceivedHandlers.current.filter((cb) => cb !== callback);
+        };
+    }, []);
+
+    const onGroupMessageSent = useCallback((callback: (data: GroupMessageSentAck) => void) => {
+        groupMessageSentHandlers.current.push(callback);
+        return () => {
+            groupMessageSentHandlers.current = groupMessageSentHandlers.current.filter((cb) => cb !== callback);
+        };
+    }, []);
+
+    const onGroupMessageRead = useCallback((callback: (event: GroupMessageReadEvent) => void) => {
+        groupMessageReadHandlers.current.push(callback);
+        return () => {
+            groupMessageReadHandlers.current = groupMessageReadHandlers.current.filter((cb) => cb !== callback);
+        };
+    }, []);
+
+    const onGroupMessageError = useCallback((callback: (error: { error: string; details?: string }) => void) => {
+        groupMessageErrorHandlers.current.push(callback);
+        return () => {
+            groupMessageErrorHandlers.current = groupMessageErrorHandlers.current.filter((cb) => cb !== callback);
+        };
+    }, []);
+
     return {
         socket: socketRef.current,
         sendMessage,
         sendTypingIndicator,
         markMessageAsRead,
+        sendGroupMessage,
+        markGroupMessageAsRead,
         onMessageReceived,
         onMessageSent,
         onMessageDelivered,
@@ -280,5 +393,9 @@ export const useWebSocket = (userId: string | null) => {
         onUserTyping,
         onContactRequest,
         onContactAccepted,
+        onGroupMessageReceived,
+        onGroupMessageSent,
+        onGroupMessageRead,
+        onGroupMessageError,
     };
 };

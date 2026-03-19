@@ -173,6 +173,74 @@ async function initDb() {
     ON messages(created_at DESC);
   `);
 
+  // ============ GROUP CHAT TABLES ============
+
+  // Tabla de grupos
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS groups (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      avatar_url TEXT,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Miembros de grupo (rol y soft-delete por removed_at)
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS group_members (
+      id TEXT PRIMARY KEY,
+      group_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
+      added_by TEXT NOT NULL,
+      added_at TEXT NOT NULL,
+      removed_at TEXT,
+      FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(group_id, user_id)
+    );
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_group_members_group
+    ON group_members(group_id);
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_group_members_user
+    ON group_members(user_id);
+  `);
+
+  // Mensajes de grupo
+  await turso.execute(`
+    CREATE TABLE IF NOT EXISTS group_messages (
+      id TEXT PRIMARY KEY,
+      group_id TEXT NOT NULL,
+      sender_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      message_type TEXT DEFAULT 'text',
+      read_by_json TEXT DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+      FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_group_messages_group
+    ON group_messages(group_id);
+  `);
+
+  await turso.execute(`
+    CREATE INDEX IF NOT EXISTS idx_group_messages_created
+    ON group_messages(created_at DESC);
+  `);
+
   // Push subscriptions
   await turso.execute(`
     CREATE TABLE IF NOT EXISTS push_subscriptions (
@@ -904,6 +972,493 @@ app.delete('/api/contacts/:user_id/:contact_id', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('[API] Contacts delete error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ GROUPS ============
+
+// Helper: verificar si un usuario es miembro activo de un grupo
+async function isActiveGroupMember(groupId, userId) {
+  const { rows } = await turso.execute({
+    sql: 'SELECT * FROM group_members WHERE group_id = ?1 AND user_id = ?2 AND removed_at IS NULL',
+    args: [groupId, userId],
+  });
+  return rows.length > 0 ? rows[0] : null;
+}
+
+// Helper: verificar si es admin de un grupo
+async function isGroupAdmin(groupId, userId) {
+  const { rows } = await turso.execute({
+    sql: 'SELECT * FROM group_members WHERE group_id = ?1 AND user_id = ?2 AND role = ?3 AND removed_at IS NULL',
+    args: [groupId, userId, 'admin'],
+  });
+  return rows.length > 0 ? rows[0] : null;
+}
+
+// Crear grupo
+app.post('/api/groups', async (req, res) => {
+  try {
+    const { name, description, avatar_url, created_by, member_ids } = req.body || {};
+
+    if (!name || !created_by) {
+      return res.status(400).json({ error: 'name y created_by requeridos' });
+    }
+
+    const creator = await getUserById(created_by);
+    if (!creator) {
+      return res.status(404).json({ error: 'Usuario creador no encontrado' });
+    }
+
+    const now = new Date().toISOString();
+    const groupId = randomUUID();
+
+    await turso.execute({
+      sql: 'INSERT INTO groups (id, name, description, avatar_url, created_by, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
+      args: [groupId, name, description || null, avatar_url || null, created_by, now, now],
+    });
+
+    const allMemberIds = new Set([created_by, ...(Array.isArray(member_ids) ? member_ids : [])]);
+
+    for (const uid of allMemberIds) {
+      const user = await getUserById(uid);
+      if (!user) continue;
+
+      const gmId = randomUUID();
+      const role = uid === created_by ? 'admin' : 'member';
+
+      await turso.execute({
+        sql: 'INSERT INTO group_members (id, group_id, user_id, role, added_by, added_at, removed_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL)',
+        args: [gmId, groupId, uid, role, created_by, now],
+      });
+    }
+
+    res.json({
+      id: groupId,
+      name,
+      description: description || null,
+      avatar_url: avatar_url || null,
+      created_by,
+      created_at: now,
+      updated_at: now,
+    });
+  } catch (error) {
+    console.error('[API] Groups create error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Listar grupos donde el usuario es miembro
+app.get('/api/groups/by-user/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const { rows: memberRows } = await turso.execute({
+      sql: 'SELECT group_id FROM group_members WHERE user_id = ?1 AND removed_at IS NULL',
+      args: [userId],
+    });
+
+    if (!memberRows.length) {
+      return res.json([]);
+    }
+
+    const groupIds = memberRows.map((r) => r.group_id);
+    const placeholders = groupIds.map((_, i) => `?${i + 1}`).join(', ');
+
+    const { rows: groups } = await turso.execute({
+      sql: `SELECT * FROM groups WHERE id IN (${placeholders}) ORDER BY updated_at DESC`,
+      args: groupIds,
+    });
+
+    const enriched = [];
+
+    for (const g of groups) {
+      const { rows: msgRows } = await turso.execute({
+        sql: 'SELECT * FROM group_messages WHERE group_id = ?1 ORDER BY created_at ASC',
+        args: [g.id],
+      });
+
+      let unreadCount = 0;
+      for (const m of msgRows) {
+        const readBy = m.read_by_json ? JSON.parse(m.read_by_json) : [];
+        if (!Array.isArray(readBy) || !readBy.includes(userId)) {
+          unreadCount += 1;
+        }
+      }
+
+      const { rows: membersCountRows } = await turso.execute({
+        sql: 'SELECT COUNT(1) as c FROM group_members WHERE group_id = ?1 AND removed_at IS NULL',
+        args: [g.id],
+      });
+
+      enriched.push({
+        id: g.id,
+        name: g.name,
+        description: g.description,
+        avatar_url: g.avatar_url,
+        created_by: g.created_by,
+        created_at: g.created_at,
+        updated_at: g.updated_at,
+        last_message: msgRows[msgRows.length - 1] || null,
+        unread_count: unreadCount,
+        members_count: membersCountRows[0]?.c || 0,
+      });
+    }
+
+    res.json(enriched);
+  } catch (error) {
+    console.error('[API] Groups by-user error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Detalle de grupo + miembros
+app.get('/api/groups/:groupId', async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+
+    const { rows: groupRows } = await turso.execute({
+      sql: 'SELECT * FROM groups WHERE id = ?1',
+      args: [groupId],
+    });
+
+    const group = groupRows[0];
+    if (!group) {
+      return res.status(404).json({ error: 'Grupo no encontrado' });
+    }
+
+    const { rows: memberRows } = await turso.execute({
+      sql: 'SELECT * FROM group_members WHERE group_id = ?1 AND removed_at IS NULL',
+      args: [groupId],
+    });
+
+    const members = [];
+    for (const m of memberRows) {
+      const user = await getUserById(m.user_id);
+      if (!user) continue;
+      members.push({
+        id: m.id,
+        user_id: m.user_id,
+        role: m.role,
+        added_at: m.added_at,
+        user: {
+          id: user.id,
+          username: user.username,
+          profile_pic: user.profile_pic,
+        },
+      });
+    }
+
+    res.json({
+      id: group.id,
+      name: group.name,
+      description: group.description,
+      avatar_url: group.avatar_url,
+      created_by: group.created_by,
+      created_at: group.created_at,
+      updated_at: group.updated_at,
+      members,
+    });
+  } catch (error) {
+    console.error('[API] Group detail error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Actualizar datos básicos del grupo (nombre, descripción, avatar) - solo admin
+app.put('/api/groups/:groupId', async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const { user_id, name, description, avatar_url } = req.body || {};
+
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id requerido' });
+    }
+
+    const admin = await isGroupAdmin(groupId, user_id);
+    if (!admin) {
+      return res.status(403).json({ error: 'Solo un administrador puede editar el grupo' });
+    }
+
+    const { rows: groupRows } = await turso.execute({
+      sql: 'SELECT * FROM groups WHERE id = ?1',
+      args: [groupId],
+    });
+
+    const group = groupRows[0];
+    if (!group) {
+      return res.status(404).json({ error: 'Grupo no encontrado' });
+    }
+
+    const now = new Date().toISOString();
+
+    await turso.execute({
+      sql: 'UPDATE groups SET name = COALESCE(?1, name), description = COALESCE(?2, description), avatar_url = COALESCE(?3, avatar_url), updated_at = ?4 WHERE id = ?5',
+      args: [name || null, description || null, avatar_url || null, now, groupId],
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Group update error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Añadir miembros a un grupo (solo admin)
+app.post('/api/groups/:groupId/members', async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const { user_id, member_ids } = req.body || {};
+
+    if (!user_id || !Array.isArray(member_ids) || !member_ids.length) {
+      return res.status(400).json({ error: 'user_id y member_ids requeridos' });
+    }
+
+    const admin = await isGroupAdmin(groupId, user_id);
+    if (!admin) {
+      return res.status(403).json({ error: 'Solo un administrador puede añadir miembros' });
+    }
+
+    const now = new Date().toISOString();
+
+    for (const mid of member_ids) {
+      const user = await getUserById(mid);
+      if (!user) continue;
+
+      const { rows } = await turso.execute({
+        sql: 'SELECT * FROM group_members WHERE group_id = ?1 AND user_id = ?2',
+        args: [groupId, mid],
+      });
+
+      if (rows.length === 0) {
+        const gmId = randomUUID();
+        await turso.execute({
+          sql: 'INSERT INTO group_members (id, group_id, user_id, role, added_by, added_at, removed_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NULL)',
+          args: [gmId, groupId, mid, 'member', user_id, now],
+        });
+      } else {
+        await turso.execute({
+          sql: 'UPDATE group_members SET removed_at = NULL, role = COALESCE(role, ?1), added_by = ?2, added_at = ?3 WHERE group_id = ?4 AND user_id = ?5',
+          args: ['member', user_id, now, groupId, mid],
+        });
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Group add members error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Eliminar miembro de un grupo (admin o el propio usuario para salir)
+app.delete('/api/groups/:groupId/members/:memberId', async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const memberId = req.params.memberId;
+    const { user_id } = req.body || {};
+
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id requerido' });
+    }
+
+    const isSelf = user_id === memberId;
+    const admin = await isGroupAdmin(groupId, user_id);
+    if (!isSelf && !admin) {
+      return res.status(403).json({ error: 'Solo un admin puede eliminar a otros miembros' });
+    }
+
+    const now = new Date().toISOString();
+
+    await turso.execute({
+      sql: 'UPDATE group_members SET removed_at = ?1 WHERE group_id = ?2 AND user_id = ?3',
+      args: [now, groupId, memberId],
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Group remove member error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Asignar admin a miembro
+app.post('/api/groups/:groupId/admins/:memberId', async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const memberId = req.params.memberId;
+    const { user_id } = req.body || {};
+
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id requerido' });
+    }
+
+    const admin = await isGroupAdmin(groupId, user_id);
+    if (!admin) {
+      return res.status(403).json({ error: 'Solo un admin puede promover a otros administradores' });
+    }
+
+    const member = await isActiveGroupMember(groupId, memberId);
+    if (!member) {
+      return res.status(404).json({ error: 'Miembro no encontrado en el grupo' });
+    }
+
+    await turso.execute({
+      sql: 'UPDATE group_members SET role = ?1 WHERE group_id = ?2 AND user_id = ?3',
+      args: ['admin', groupId, memberId],
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Group add admin error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Quitar rol de admin a miembro
+app.delete('/api/groups/:groupId/admins/:memberId', async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const memberId = req.params.memberId;
+    const { user_id } = req.body || {};
+
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id requerido' });
+    }
+
+    const admin = await isGroupAdmin(groupId, user_id);
+    if (!admin) {
+      return res.status(403).json({ error: 'Solo un admin puede modificar otros administradores' });
+    }
+
+    await turso.execute({
+      sql: 'UPDATE group_members SET role = ?1 WHERE group_id = ?2 AND user_id = ?3',
+      args: ['member', groupId, memberId],
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Group remove admin error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtener mensajes de grupo
+app.get('/api/groups/:groupId/messages', async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+
+    const { rows } = await turso.execute({
+      sql: 'SELECT * FROM group_messages WHERE group_id = ?1 ORDER BY created_at ASC',
+      args: [groupId],
+    });
+
+    const enriched = [];
+    for (const msg of rows) {
+      const sender = await getUserById(msg.sender_id);
+      enriched.push({
+        ...msg,
+        sender: sender
+          ? { id: sender.id, username: sender.username, profile_pic: sender.profile_pic }
+          : null,
+      });
+    }
+
+    res.json(enriched);
+  } catch (error) {
+    console.error('[API] Group messages list error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Enviar mensaje a grupo
+app.post('/api/groups/:groupId/messages', async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const { sender_id, content, message_type } = req.body || {};
+
+    if (!sender_id || !content?.trim()) {
+      return res.status(400).json({ error: 'sender_id y content requeridos' });
+    }
+
+    const member = await isActiveGroupMember(groupId, sender_id);
+    if (!member) {
+      return res.status(403).json({ error: 'Solo miembros activos pueden enviar mensajes al grupo' });
+    }
+
+    const now = new Date().toISOString();
+    const messageId = randomUUID();
+
+    await turso.execute({
+      sql: 'INSERT INTO group_messages (id, group_id, sender_id, content, message_type, read_by_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
+      args: [messageId, groupId, sender_id, content.trim(), message_type || 'text', '[]', now],
+    });
+
+    await turso.execute({
+      sql: 'UPDATE groups SET updated_at = ?1 WHERE id = ?2',
+      args: [now, groupId],
+    });
+
+    res.json({
+      id: messageId,
+      group_id: groupId,
+      sender_id,
+      content: content.trim(),
+      message_type: message_type || 'text',
+      read_by_json: '[]',
+      created_at: now,
+    });
+  } catch (error) {
+    console.error('[API] Group send message error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Marcar mensaje de grupo como leído por un usuario
+app.post('/api/groups/:groupId/messages/:messageId/read', async (req, res) => {
+  try {
+    const groupId = req.params.groupId;
+    const messageId = req.params.messageId;
+    const { user_id } = req.body || {};
+
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id requerido' });
+    }
+
+    const member = await isActiveGroupMember(groupId, user_id);
+    if (!member) {
+      return res.status(403).json({ error: 'Solo miembros activos pueden marcar mensajes como leídos' });
+    }
+
+    const { rows } = await turso.execute({
+      sql: 'SELECT * FROM group_messages WHERE id = ?1 AND group_id = ?2',
+      args: [messageId, groupId],
+    });
+
+    const msg = rows[0];
+    if (!msg) {
+      return res.status(404).json({ error: 'Mensaje no encontrado' });
+    }
+
+    let readBy = [];
+    try {
+      readBy = msg.read_by_json ? JSON.parse(msg.read_by_json) : [];
+      if (!Array.isArray(readBy)) readBy = [];
+    } catch {
+      readBy = [];
+    }
+
+    if (!readBy.includes(user_id)) {
+      readBy.push(user_id);
+      await turso.execute({
+        sql: 'UPDATE group_messages SET read_by_json = ?1 WHERE id = ?2',
+        args: [JSON.stringify(readBy), messageId],
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] Group mark message read error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1931,6 +2486,24 @@ initDb()
         // Unirse a room específico del usuario para mensajes dirigidos
         socket.join(`user:${userId}`);
         
+        // Unirse a rooms de grupos donde es miembro activo
+        (async () => {
+          try {
+            const { rows } = await turso.execute({
+              sql: 'SELECT group_id FROM group_members WHERE user_id = ?1 AND removed_at IS NULL',
+              args: [userId],
+            });
+            for (const row of rows) {
+              socket.join(`group:${row.group_id}`);
+            }
+            if (rows.length) {
+              console.log(`[Socket.io] User ${userId} joined groups:`, rows.map((r) => r.group_id));
+            }
+          } catch (err) {
+            console.error('[Socket.io] Failed to join group rooms for user:', userId, err);
+          }
+        })();
+        
         console.log(`[Socket.io] User authenticated: ${userId}, Socket ID: ${socket.id}`);
 
         // Notificar a otros que este usuario está online
@@ -2060,6 +2633,124 @@ initDb()
           });
         } catch (error) {
           console.error('[Socket.io] Error marking message as read:', error);
+        }
+      });
+
+      // ===== GROUP MESSAGES =====
+
+      // Enviar mensaje a grupo
+      socket.on('group:message:send', async (data) => {
+        const { groupId, senderId, content, clientId, messageType } = data || {};
+
+        if (!groupId || !senderId || !content?.trim()) {
+          console.error('[Socket.io] Invalid group message data:', data);
+          socket.emit('group:message:error', { error: 'Invalid group message data' });
+          return;
+        }
+
+        try {
+          const member = await isActiveGroupMember(groupId, senderId);
+          if (!member) {
+            console.error('[Socket.io] Sender is not active group member:', senderId, groupId);
+            socket.emit('group:message:error', { error: 'No eres miembro activo de este grupo' });
+            return;
+          }
+
+          const id = randomUUID();
+          const now = new Date().toISOString();
+
+          await turso.execute({
+            sql: 'INSERT INTO group_messages (id, group_id, sender_id, content, message_type, read_by_json, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
+            args: [id, groupId, senderId, content.trim(), messageType || 'text', '[]', now],
+          });
+
+          await turso.execute({
+            sql: 'UPDATE groups SET updated_at = ?1 WHERE id = ?2',
+            args: [now, groupId],
+          });
+
+          const payload = {
+            id,
+            group_id: groupId,
+            sender_id: senderId,
+            content: content.trim(),
+            message_type: messageType || 'text',
+            read_by_json: '[]',
+            created_at: now,
+          };
+
+          // Confirmación al remitente (para casar mensaje optimista)
+          socket.emit('group:message:sent', {
+            id,
+            groupId,
+            created_at: now,
+            clientId,
+          });
+
+          // Broadcast a todos los miembros conectados del grupo
+          io.to(`group:${groupId}`).emit('group:message:received', payload);
+        } catch (error) {
+          console.error('[Socket.io] Error sending group message:', error);
+          socket.emit('group:message:error', {
+            error: 'Failed to send group message',
+            details: error.message,
+          });
+        }
+      });
+
+      // Marcar mensaje de grupo como leído
+      socket.on('group:message:markAsRead', async (data) => {
+        const { groupId, messageId, userId } = data || {};
+
+        if (!groupId || !messageId || !userId) {
+          console.error('[Socket.io] Invalid group markAsRead data:', data);
+          return;
+        }
+
+        try {
+          const member = await isActiveGroupMember(groupId, userId);
+          if (!member) {
+            console.error('[Socket.io] Non-member tried to mark group message as read:', userId, groupId);
+            return;
+          }
+
+          const { rows } = await turso.execute({
+            sql: 'SELECT read_by_json FROM group_messages WHERE id = ?1 AND group_id = ?2',
+            args: [messageId, groupId],
+          });
+
+          const msg = rows[0];
+          if (!msg) {
+            console.error('[Socket.io] Group message not found for markAsRead:', messageId);
+            return;
+          }
+
+          let readBy = [];
+          try {
+            readBy = msg.read_by_json ? JSON.parse(msg.read_by_json) : [];
+            if (!Array.isArray(readBy)) readBy = [];
+          } catch {
+            readBy = [];
+          }
+
+          if (!readBy.includes(userId)) {
+            readBy.push(userId);
+            await turso.execute({
+              sql: 'UPDATE group_messages SET read_by_json = ?1 WHERE id = ?2',
+              args: [JSON.stringify(readBy), messageId],
+            });
+          }
+
+          const now = new Date().toISOString();
+
+          io.to(`group:${groupId}`).emit('group:message:read', {
+            groupId,
+            messageId,
+            userId,
+            readAt: now,
+          });
+        } catch (error) {
+          console.error('[Socket.io] Error marking group message as read:', error);
         }
       });
 

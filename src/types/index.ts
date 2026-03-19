@@ -132,3 +132,45 @@ export interface ConversationWithData extends Conversation {
     last_message?: Message;
     unread_count?: number;
 }
+
+// ============ GROUP CHATS ============
+
+export interface Group {
+    id: string;
+    name: string;
+    description?: string | null;
+    avatar_url?: string | null;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface GroupMember {
+    id: string;
+    group_id: string;
+    user_id: string;
+    role: 'admin' | 'member';
+    added_by: string;
+    added_at: string;
+    removed_at?: string | null;
+}
+
+export interface GroupMessage {
+    id: string;
+    group_id: string;
+    sender_id: string;
+    content: string;
+    message_type: 'text' | 'image' | 'file';
+    read_by_json: string; // JSON string con array de user_ids que han leído el mensaje
+    created_at: string;
+}
+
+export interface GroupMessageWithSender extends GroupMessage {
+    sender?: Pick<User, 'id' | 'username' | 'profile_pic'>;
+}
+
+export interface GroupWithData extends Group {
+    last_message?: GroupMessage;
+    unread_count?: number;
+    members_count?: number;
+}

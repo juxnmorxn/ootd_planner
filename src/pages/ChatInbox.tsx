@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Search, MessageCircle, ChevronDown } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
+import { useGroupChat } from '../hooks/useGroupChat';
 import { useStore } from '../lib/store';
 import { ChatWindow } from '../components/chat/ChatWindow';
-import type { ConversationWithData } from '../types';
+import { GroupChatWindow } from '../components/chat/GroupChatWindow';
+import type { ConversationWithData, GroupWithData } from '../types';
 import './ChatInbox.css';
 
 interface ChatInboxProps {
@@ -14,10 +16,12 @@ type TabType = 'messages' | 'groups';
 
 export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     const { conversations, getConversations, onContactAccepted, onContactRequest, markConversationAsRead } = useChat(userId);
+    const { groups, getGroups } = useGroupChat(userId);
     const { currentUser, setIsViewingIndividualChat, currentChatTargetUserId, setCurrentChatTargetUserId, pendingRequestsCount, setPendingRequestsCount } = useStore();
     
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [showChatView, setShowChatView] = useState(false);
@@ -40,7 +44,10 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     useEffect(() => {
         const load = async () => {
             setLoading(true);
-            await getConversations(userId);
+            await Promise.all([
+                getConversations(userId),
+                getGroups(userId),
+            ]);
             setLoading(false);
         };
         load();
@@ -111,9 +118,11 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     }, [searchQuery, conversations]);
 
     const selectedConversation = conversations.find(c => c.id === selectedConversationId);
+    const selectedGroup: GroupWithData | undefined = groups.find(g => g.id === selectedGroupId);
 
     // Manejar abrir chat
     const handleOpenChat = async (conversation: ConversationWithData) => {
+        setSelectedGroupId(null);
         setSelectedConversationId(conversation.id);
         // Marcar la conversación como leída al abrirla (estilo WhatsApp)
         try {
@@ -129,21 +138,39 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
     // La gestión de solicitudes y agregar amigos ahora vive en la vista "Amigos"
 
     // Vista mobile: mostrar solo chat a pantalla completa (tipo WhatsApp)
-    if (isMobile && showChatView && selectedConversation) {
-        return (
-            <div className="chat-inbox chat-inbox-fullscreen">
-                <ChatWindow
-                    conversationId={selectedConversation.id}
-                    userId={userId}
-                    recipientId={selectedConversation.other_user?.id || ''}
-                    otherUsername={selectedConversation.other_user?.username || 'Usuario'}
-                    onBack={() => {
-                        setShowChatView(false);
-                        setSelectedConversationId(null);
-                    }}
-                />
-            </div>
-        );
+    if (isMobile && showChatView) {
+        if (selectedConversation) {
+            return (
+                <div className="chat-inbox chat-inbox-fullscreen">
+                    <ChatWindow
+                        conversationId={selectedConversation.id}
+                        userId={userId}
+                        recipientId={selectedConversation.other_user?.id || ''}
+                        otherUsername={selectedConversation.other_user?.username || 'Usuario'}
+                        onBack={() => {
+                            setShowChatView(false);
+                            setSelectedConversationId(null);
+                        }}
+                    />
+                </div>
+            );
+        }
+
+        if (selectedGroup) {
+            return (
+                <div className="chat-inbox chat-inbox-fullscreen">
+                    <GroupChatWindow
+                        groupId={selectedGroup.id}
+                        groupName={selectedGroup.name}
+                        userId={userId}
+                        onBack={() => {
+                            setShowChatView(false);
+                            setSelectedGroupId(null);
+                        }}
+                    />
+                </div>
+            );
+        }
     }
 
     // Vista inbox
@@ -228,7 +255,6 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                                                     {(conv.other_user?.username || '?').charAt(0).toUpperCase()}
                                                                 </div>
                                                             )}
-                                                            <div className="online-indicator"></div>
                                                         </div>
                                                         <div className="chat-content">
                                                             <div className="chat-header">
@@ -274,33 +300,33 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                                                         className={`chat-item ${selectedConversationId === conv.id ? 'active' : ''} ${hasUnread ? 'unread' : ''}`}
                                                         onClick={() => handleOpenChat(conv)}
                                                     >
-                                                    <div className="chat-avatar">
-                                                        {conv.other_user?.profile_pic ? (
-                                                            <img src={conv.other_user.profile_pic} alt="" />
-                                                        ) : (
-                                                            <div className="avatar-placeholder">
-                                                                {(conv.other_user?.username || '?').charAt(0).toUpperCase()}
+                                                        <div className="chat-avatar">
+                                                            {conv.other_user?.profile_pic ? (
+                                                                <img src={conv.other_user.profile_pic} alt="" />
+                                                            ) : (
+                                                                <div className="avatar-placeholder">
+                                                                    {(conv.other_user?.username || '?').charAt(0).toUpperCase()}
+                                                                </div>
+                                                            )}
+                                                            <div className="online-indicator"></div>
+                                                        </div>
+                                                        <div className="chat-content">
+                                                            <div className="chat-header">
+                                                                <p className="chat-name">{conv.other_user?.username}</p>
+                                                                <p className="chat-time">
+                                                                    {conv.last_message?.created_at
+                                                                        ? formatMessageTime(new Date(conv.last_message.created_at))
+                                                                        : ''}
+                                                                </p>
                                                             </div>
-                                                        )}
-                                                        <div className="online-indicator"></div>
-                                                    </div>
-                                                    <div className="chat-content">
-                                                        <div className="chat-header">
-                                                            <p className="chat-name">{conv.other_user?.username}</p>
-                                                            <p className="chat-time">
-                                                                {conv.last_message?.created_at
-                                                                    ? formatMessageTime(new Date(conv.last_message.created_at))
-                                                                    : ''}
+                                                            <p className="chat-message">
+                                                                {conv.last_message?.content || 'Sin mensajes aún'}
                                                             </p>
                                                         </div>
-                                                        <p className="chat-message">
-                                                            {conv.last_message?.content || 'Sin mensajes aún'}
-                                                        </p>
+                                                        {hasUnread && (
+                                                            <span className="unread-dot"></span>
+                                                        )}
                                                     </div>
-                                                    {hasUnread && (
-                                                        <span className="unread-dot"></span>
-                                                    )}
-                                                </div>
                                                 );
                                             })}
                                         </div>
@@ -309,17 +335,60 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
                             )}
                         </>
                     ) : (
-                        // TAB: GRUPOS (UI básica sin funcionalidad)
+                        // TAB: GRUPOS
                         <div className="groups-tab">
                             <div className="groups-header">
                                 <button type="button" className="create-group-btn">
                                     + Crear grupo
                                 </button>
                             </div>
-                            <div className="empty-state">
-                                <p>Aún no tienes grupos.</p>
-                                <p className="empty-hint">Pronto podrás crear y ver tus grupos aquí.</p>
-                            </div>
+                            {loading ? (
+                                <p className="loading">Cargando grupos...</p>
+                            ) : groups.length === 0 ? (
+                                <div className="empty-state">
+                                    <p>Aún no tienes grupos.</p>
+                                </div>
+                            ) : (
+                                <div className="chats-list">
+                                    {groups.map((group) => {
+                                        const hasUnread = (group.unread_count ?? 0) > 0;
+                                        const lastMessage = group.last_message;
+                                        return (
+                                            <div
+                                                key={group.id}
+                                                className={`chat-item ${selectedGroupId === group.id ? 'active' : ''} ${hasUnread ? 'unread' : ''}`}
+                                                onClick={() => {
+                                                    setSelectedConversationId(null);
+                                                    setSelectedGroupId(group.id);
+                                                    if (isMobile) {
+                                                        setShowChatView(true);
+                                                    }
+                                                }}
+                                            >
+                                                <div className="chat-avatar">
+                                                    <div className="avatar-placeholder">
+                                                        {group.name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                </div>
+                                                <div className="chat-content">
+                                                    <div className="chat-header">
+                                                        <p className="chat-name">{group.name}</p>
+                                                        <p className="chat-time">
+                                                            {lastMessage?.created_at
+                                                                ? formatMessageTime(new Date(lastMessage.created_at))
+                                                                : ''}
+                                                        </p>
+                                                    </div>
+                                                    <p className="chat-message">
+                                                        {lastMessage?.content || 'Sin mensajes aún'}
+                                                    </p>
+                                                </div>
+                                                {hasUnread && <span className="unread-dot"></span>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
