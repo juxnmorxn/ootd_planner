@@ -54,6 +54,16 @@ export const useWebSocket = (userId: string | null) => {
     const socketRef = useRef<any | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Listas de handlers por tipo de evento para poder registrar callbacks
+    // aunque el socket aún no se haya conectado.
+    const messageReceivedHandlers = useRef<Array<(m: WebSocketMessage) => void>>([]);
+    const messageSentHandlers = useRef<Array<(d: { id: string; created_at: string }) => void>>([]);
+    const messageErrorHandlers = useRef<Array<(e: { error: string; details?: string }) => void>>([]);
+    const userStatusHandlers = useRef<Array<(s: UserStatus) => void>>([]);
+    const userTypingHandlers = useRef<Array<(t: TypingIndicator) => void>>([]);
+    const contactRequestHandlers = useRef<Array<(e: ContactRequestEvent) => void>>([]);
+    const contactAcceptedHandlers = useRef<Array<(e: ContactAcceptedEvent) => void>>([]);
+
     // Inicializar conexión WebSocket
     useEffect(() => {
         if (!userId) return;
@@ -88,6 +98,35 @@ export const useWebSocket = (userId: string | null) => {
 
         socket.on('connect_error', (error: any) => {
             console.error('[WS] Connection error:', error);
+        });
+
+        // Puente de eventos: reenviar a todos los handlers registrados
+        socket.on('message:received', (message: WebSocketMessage) => {
+            messageReceivedHandlers.current.forEach((cb) => cb(message));
+        });
+
+        socket.on('message:sent', (data: { id: string; created_at: string }) => {
+            messageSentHandlers.current.forEach((cb) => cb(data));
+        });
+
+        socket.on('message:error', (err: { error: string; details?: string }) => {
+            messageErrorHandlers.current.forEach((cb) => cb(err));
+        });
+
+        socket.on('user:status', (status: UserStatus) => {
+            userStatusHandlers.current.forEach((cb) => cb(status));
+        });
+
+        socket.on('user:typing', (typing: TypingIndicator) => {
+            userTypingHandlers.current.forEach((cb) => cb(typing));
+        });
+
+        socket.on('contact:request', (event: ContactRequestEvent) => {
+            contactRequestHandlers.current.forEach((cb) => cb(event));
+        });
+
+        socket.on('contact:accepted', (event: ContactAcceptedEvent) => {
+            contactAcceptedHandlers.current.forEach((cb) => cb(event));
         });
 
         socketRef.current = socket;
@@ -153,15 +192,17 @@ export const useWebSocket = (userId: string | null) => {
 
     // Escuchar eventos
     const onMessageReceived = useCallback((callback: (message: WebSocketMessage) => void) => {
-        if (!socketRef.current) return () => {};
-        socketRef.current.on('message:received', callback);
-        return () => socketRef.current?.off('message:received', callback);
+        messageReceivedHandlers.current.push(callback);
+        return () => {
+            messageReceivedHandlers.current = messageReceivedHandlers.current.filter((cb) => cb !== callback);
+        };
     }, []);
 
     const onMessageSent = useCallback((callback: (data: { id: string; created_at: string }) => void) => {
-        if (!socketRef.current) return () => {};
-        socketRef.current.on('message:sent', callback);
-        return () => socketRef.current?.off('message:sent', callback);
+        messageSentHandlers.current.push(callback);
+        return () => {
+            messageSentHandlers.current = messageSentHandlers.current.filter((cb) => cb !== callback);
+        };
     }, []);
 
     const onMessageRead = useCallback((callback: (data: { messageId: string; userId: string }) => void) => {
@@ -171,33 +212,38 @@ export const useWebSocket = (userId: string | null) => {
     }, []);
 
     const onMessageError = useCallback((callback: (error: { error: string; details?: string }) => void) => {
-        if (!socketRef.current) return () => {};
-        socketRef.current.on('message:error', callback);
-        return () => socketRef.current?.off('message:error', callback);
+        messageErrorHandlers.current.push(callback);
+        return () => {
+            messageErrorHandlers.current = messageErrorHandlers.current.filter((cb) => cb !== callback);
+        };
     }, []);
 
     const onUserStatus = useCallback((callback: (status: UserStatus) => void) => {
-        if (!socketRef.current) return () => {};
-        socketRef.current.on('user:status', callback);
-        return () => socketRef.current?.off('user:status', callback);
+        userStatusHandlers.current.push(callback);
+        return () => {
+            userStatusHandlers.current = userStatusHandlers.current.filter((cb) => cb !== callback);
+        };
     }, []);
 
     const onUserTyping = useCallback((callback: (typing: TypingIndicator) => void) => {
-        if (!socketRef.current) return () => {};
-        socketRef.current.on('user:typing', callback);
-        return () => socketRef.current?.off('user:typing', callback);
+        userTypingHandlers.current.push(callback);
+        return () => {
+            userTypingHandlers.current = userTypingHandlers.current.filter((cb) => cb !== callback);
+        };
     }, []);
 
     const onContactRequest = useCallback((callback: (event: ContactRequestEvent) => void) => {
-        if (!socketRef.current) return () => {};
-        socketRef.current.on('contact:request', callback);
-        return () => socketRef.current?.off('contact:request', callback);
+        contactRequestHandlers.current.push(callback);
+        return () => {
+            contactRequestHandlers.current = contactRequestHandlers.current.filter((cb) => cb !== callback);
+        };
     }, []);
 
     const onContactAccepted = useCallback((callback: (event: ContactAcceptedEvent) => void) => {
-        if (!socketRef.current) return () => {};
-        socketRef.current.on('contact:accepted', callback);
-        return () => socketRef.current?.off('contact:accepted', callback);
+        contactAcceptedHandlers.current.push(callback);
+        return () => {
+            contactAcceptedHandlers.current = contactAcceptedHandlers.current.filter((cb) => cb !== callback);
+        };
     }, []);
 
     return {
