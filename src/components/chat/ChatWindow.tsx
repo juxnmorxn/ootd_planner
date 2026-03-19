@@ -32,57 +32,28 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, userId, 
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Auto-scroll al fondo cuando se cargan mensajes
+    // Auto-scroll al fondo cuando se cargan mensajes (solo dentro del contenedor)
     useEffect(() => {
         const timer = setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+            if (messagesContainerRef.current) {
+                messagesContainerRef.current.scrollTo({
+                    top: messagesContainerRef.current.scrollHeight,
+                    behavior: 'smooth',
+                });
+            }
+        }, 80);
         return () => clearTimeout(timer);
     }, [currentMessages, typingUsers]);
 
-    // Auto-scroll cuando se abre el input - más agresivo para móvil
+    // Al enfocar el input, simplemente llevamos el contenedor al fondo
     const handleInputFocus = () => {
-        // Scroll inmediato y agresivo al input para que esté visible encima del teclado
-        const scrollToInput = () => {
-            if (inputRef.current) {
-                // Usar scrollIntoView con block: 'end' para llevar el input al final de la pantalla visible
-                inputRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-                // Asegurar scroll al fondo del contenedor de mensajes
-                messagesContainerRef.current?.scrollTo({
-                    top: messagesContainerRef.current.scrollHeight,
-                    behavior: 'auto',
-                });
-            }
-        };
-        
-        // Scrolls inmediatos 
-        scrollToInput();
-        setTimeout(scrollToInput, 100);
-        setTimeout(scrollToInput, 300);
+        if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTo({
+                top: messagesContainerRef.current.scrollHeight,
+                behavior: 'smooth',
+            });
+        }
     };
-
-    // Listener para detectar cuando el viewport cambia (teclado aparece)
-    useEffect(() => {
-        const handleResize = () => {
-            // Si el input está focused y el viewport se reduce, hacer scroll agresivo
-            if (inputRef.current === document.activeElement) {
-                const scrollToInput = () => {
-                    if (inputRef.current) {
-                        inputRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-                        messagesContainerRef.current?.scrollTo({
-                            top: messagesContainerRef.current.scrollHeight,
-                            behavior: 'auto',
-                        });
-                    }
-                };
-                scrollToInput();
-                setTimeout(scrollToInput, 100);
-            }
-        };
-        
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
 
     useEffect(() => {
         console.log('[ChatWindow] Conversation opened, fetching messages:', conversationId);
