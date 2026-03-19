@@ -234,10 +234,10 @@ export const ChatInbox: React.FC<ChatInboxProps> = ({ userId }) => {
         }
     };
 
-    // Vista mobile: mostrar solo chat
+    // Vista mobile: mostrar solo chat a pantalla completa (tipo WhatsApp)
     if (isMobile && showChatView && selectedConversation) {
         return (
-            <div className="chat-inbox">
+            <div className="chat-inbox chat-inbox-fullscreen">
                 <ChatWindow
                     conversationId={selectedConversation.id}
                     userId={userId}
